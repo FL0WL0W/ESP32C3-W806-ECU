@@ -11,6 +11,8 @@
 #include "driver/usb_serial_jtag.h"
 #include "hal/gpio_hal.h"
 #include "UPDI.h"
+#include "uart_listen.h"
+#include "sock_uart.h"
 
 #include "lwip/err.h"
 #include "lwip/sockets.h"
@@ -344,52 +346,6 @@ void wifi_init_softap()
     ESP_ERROR_CHECK(esp_wifi_start());
 }
 
-typedef struct 
-{
-    uart_config_t *uart_config;
-    uart_port_t uart_num;
-    gpio_num_t tx_pin;
-    gpio_num_t rx_pin;
-    gpio_num_t reset_pin;
-    uint16_t port;
-} telenet_uart_listen_config_t;
-
-typedef struct 
-{
-    telenet_uart_listen_config_t *listen_config;
-    int sock;
-} telenet_uart_sock_config_t;
-
-static void telnet_uart_sock_write(void *arg)
-{
-    telenet_uart_sock_config_t *config = (telenet_uart_sock_config_t *)arg;
-
-    uint8_t rx_buffer[1056];
-    while (1) {
-        // Read data from the UART
-        int len = uart_read_bytes(config->listen_config->uart_num, rx_buffer, sizeof(rx_buffer), pdMS_TO_TICKS(100));
-        // Write data to sock
-        if (len) {
-            // ESP_LOGI("TELNET_UART", "txlen: %d", len);
-            // rx_buffer[len] = 0; // Null-terminate whatever is received and treat it like a string
-            // ESP_LOGI("TELNET_UART", "Received %d bytes: %s", len, rx_buffer);
-            // ESP_LOG_BUFFER_HEX_LEVEL("TELNET_UART", rx_buffer, len, ESP_LOG_INFO);
-            send(config->sock, rx_buffer, len, 0);
-            // int to_write = len;
-            // while (to_write > 0) {
-            //     int written = send(config->sock, rx_buffer + (len - to_write), to_write, 0);
-            //     if (written < 0) {
-            //         ESP_LOGE("TELNET_UART", "Error occurred during sending: errno %d", written);
-            //         // Failed to retransmit, giving up
-            //         vTaskDelete(NULL);
-            //         return;
-            //     }
-            //     to_write -= written;
-            // }
-        }
-    }
-}
-
 static void reset_w806(void *arg)
 {
     ESP_LOGI("W806", "Resetting");
@@ -402,130 +358,6 @@ static void reset_w806(void *arg)
     vTaskDelete(NULL);
 }
 
-static void telnet_uart_sock_read(void *arg)
-{
-    telenet_uart_sock_config_t *config = (telenet_uart_sock_config_t *)arg;
-    const int sock = config->sock;
-
-    if(!uart_is_driver_installed(config->listen_config->uart_num))
-        ESP_ERROR_CHECK(uart_driver_install(config->listen_config->uart_num, 1056, 1056, 0, NULL, 0));
-    ESP_ERROR_CHECK(uart_set_rx_full_threshold(config->listen_config->uart_num, 1));
-    ESP_ERROR_CHECK(uart_param_config(config->listen_config->uart_num, config->listen_config->uart_config));
-    ESP_ERROR_CHECK(uart_set_pin(config->listen_config->uart_num, config->listen_config->rx_pin, config->listen_config->tx_pin, config->listen_config->reset_pin, UART_PIN_NO_CHANGE));
-
-    xTaskCreate(telnet_uart_sock_write, "telnet_uart_sock_write", 4096, arg, 10, NULL);
-
-    int len;
-    uint8_t rx_buffer[1056];
-    while(1)
-    {
-        len = recv(sock, rx_buffer, sizeof(rx_buffer), 0);
-        if (len == 0 || len == -1) {
-            ESP_LOGW("TELNET_UART", "Connection closed");
-            goto telnet_uart_sock_read_cleanup;
-        } else if (len < 0) {
-            ESP_LOGE("TELNET_UART", "Error occurred during receiving: errno %d", len);
-        } else {
-            // ESP_LOGI("TELNET_UART", "rxlen: %d", len);
-            // rx_buffer[len] = 0; // Null-terminate whatever is received and treat it like a string
-            // ESP_LOGI("TELNET_UART", "Sent %d bytes: %s", len, rx_buffer);
-            if(strncmp((const char *)rx_buffer, "AT+Z\r\n", 6) == 0) {
-                xTaskCreate(reset_w806, "reset_w806", 4096, arg, 8, NULL);
-            } else {
-                uart_write_bytes(config->listen_config->uart_num, rx_buffer, len);
-                // int to_write = len;
-                // while (to_write > 0) {
-                //     int written = uart_write_bytes(config->listen_config->uart_num, rx_buffer + (len - to_write), to_write);
-                //     if (written < 0) {
-                //         ESP_LOGE("TELNET_UART", "Error occurred during sending: errno %d", written);
-                //         // Failed to retransmit, giving up
-                //         vTaskDelete(NULL);
-                //         return;
-                //     }
-                //     to_write -= written;
-                // }
-            }
-        }
-    }
-
-telnet_uart_sock_read_cleanup:
-    shutdown(sock, 0);
-    close(sock);
-    vTaskDelete(NULL);
-}
-
-static void telenet_uart_listen(void * arg)
-{
-    telenet_uart_listen_config_t *config = (telenet_uart_listen_config_t *)arg;
-    int keepAlive = 1;
-    int keepIdle = 5;
-    int keepInterval = 5;
-    int keepCount = 3;
-    int noDelay = 1;
-    struct sockaddr_storage dest_addr;
-
-    struct sockaddr_in *dest_addr_ip4 = (struct sockaddr_in *)&dest_addr;
-    dest_addr_ip4->sin_addr.s_addr = htonl(INADDR_ANY);
-    dest_addr_ip4->sin_family = AF_INET;
-    dest_addr_ip4->sin_port = htons(config->port);
-
-    int listen_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-    if (listen_sock < 0) 
-    {
-        ESP_LOGE("TELNET_UART", "Unable to create socket: errno %d", errno);
-        vTaskDelete(NULL);
-        return;
-    }
-    int opt = 1;
-    setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-
-    int err = bind(listen_sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
-    if (err != 0) 
-    {
-        ESP_LOGE("TELNET_UART", "Socket unable to bind: errno %d", errno);
-        goto telnet_uart_listen_cleanup;
-    }
-
-    err = listen(listen_sock, 1);
-    if (err != 0) 
-    {
-        ESP_LOGE("TELNET_UART", "Error occurred during listen: errno %d", errno);
-        goto telnet_uart_listen_cleanup;
-    }
-
-    while (1) 
-    {
-        struct sockaddr_storage source_addr;
-        socklen_t addr_len = sizeof(source_addr);
-        int sock = accept(listen_sock, (struct sockaddr *)&source_addr, &addr_len);
-        if (sock < 0) {
-            ESP_LOGE("TELNET_UART", "Unable to accept connection: errno %d", errno);
-            continue;
-        }
-
-        // Set tcp keepalive option
-        setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, &keepAlive, sizeof(int));
-        setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, &keepIdle, sizeof(int));
-        setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, &keepInterval, sizeof(int));
-        setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, &keepCount, sizeof(int));
-        setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &noDelay, sizeof(int));
-        int rcvbuf = 1056;
-        setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(int));
-
-        telenet_uart_sock_config_t telenet_uart_sock_config = 
-        {
-            .listen_config = config,
-            .sock = sock
-        };
-        xTaskCreate(telnet_uart_sock_read, "telnet_uart_sock_read", 4096, &telenet_uart_sock_config, 10, NULL);
-    }
-
-telnet_uart_listen_cleanup:
-    close(listen_sock);
-    vTaskDelete(NULL);
-}
-
-
 void app_main()
 {
     //Initialize NVS
@@ -535,11 +367,15 @@ void app_main()
       ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
+
+    //initialize net
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
+    //initialize wifi
     wifi_init_softap();
 
+    //reset w806
     gpio_config_t io_conf = {};
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.mode = GPIO_MODE_OUTPUT;
@@ -552,6 +388,18 @@ void app_main()
     vTaskDelay(pdMS_TO_TICKS(10));
     ESP_ERROR_CHECK(gpio_set_level(W806_RESET_PIN, 1));
 
+    //install uart listen services
+    uart_listen_config_t uart_listen_config[UART_NUM_MAX];
+    char uart_listen_name[UART_NUM_MAX][16];
+    for(uint8_t i = UART_NUM_0; i < UART_NUM_MAX; i++)
+    {
+        uart_listen_config[i].uart_num = i;
+        uart_listen_config[i].rx_buffer_size = 2048;
+        uart_listen_config[i].tx_buffer_size = 0;
+        sprintf(uart_listen_name[i], "uart_listen_%d", i);
+        xTaskCreate(uart_listen, uart_listen_name[i], 4096, &uart_listen_config[i], 10, NULL);
+    }
+
     uart_config_t W806_uart_config = {
         .baud_rate = 115200,
         .data_bits = UART_DATA_8_BITS,
@@ -561,17 +409,17 @@ void app_main()
         .source_clk = UART_SCLK_DEFAULT,
     };
 
-    telenet_uart_listen_config_t W806_telnet_uart_listen_config = 
+    sock_uart_config_t W806_sock_uart_config = 
     {
-        .uart_config = &W806_uart_config,
         .port = 8000,
+        .sock_rx_buffer_size = 128,
         .uart_num = 0,
+        .uart_config = &W806_uart_config,
         .rx_pin = W806_UART_RX_PIN,
-        .tx_pin = W806_UART_TX_PIN,
-        .reset_pin = UART_PIN_NO_CHANGE
+        .tx_pin = W806_UART_TX_PIN
     };
 
-    xTaskCreate(telenet_uart_listen, "w806_telnet_uart_listen", 4096, &W806_telnet_uart_listen_config, 5, NULL);
+    xTaskCreate(sock_uart, "w806_sock_uart", 4096, &W806_sock_uart_config, 5, NULL);
 
     // vTaskDelay(pdMS_TO_TICKS(1000));
     // size_t attinyload_bytes = attinyload_end - attinyload_start;
