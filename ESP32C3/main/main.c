@@ -12,7 +12,9 @@
 #include "hal/gpio_hal.h"
 #include "UPDI.h"
 #include "uart_listen.h"
+#include "can_listen.h"
 #include "sock_uart.h"
+#include "sock_can.h"
 
 #include "lwip/err.h"
 #include "lwip/sockets.h"
@@ -420,6 +422,41 @@ void app_main()
     };
 
     xTaskCreate(sock_uart, "w806_sock_uart", 4096, &W806_sock_uart_config, 5, NULL);
+
+    //install can listen service
+    twai_general_config_t twai_general_config = {
+        .controller_id = 0,
+        .mode = TWAI_MODE_LISTEN_ONLY,
+        .tx_io = 9,
+        .rx_io = 8,
+        .clkout_io = TWAI_IO_UNUSED,
+        .bus_off_io = TWAI_IO_UNUSED,
+        .tx_queue_len = 1000,
+        .rx_queue_len = 1000,
+        .alerts_enabled = TWAI_ALERT_NONE,
+        .clkout_divider = 0,
+        .intr_flags = ESP_INTR_FLAG_LEVEL1
+    };
+    twai_timing_config_t twai_timing_config = TWAI_TIMING_CONFIG_500KBITS();
+    twai_filter_config_t twai_filter_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
+    twai_handle_t twai_handle;
+    twai_driver_install_v2(&twai_general_config, &twai_timing_config, &twai_filter_config, &twai_handle);
+    can_listen_config_t can_listen_config = {
+        .can_num = 0,
+        .can_handle = twai_handle
+    };
+
+    xTaskCreate(can_listen, "can_listen", 4096, &can_listen_config, 9, NULL);
+
+    sock_can_config_t sock_can_config = {
+        .port = 7000,
+        .can_num = 0,
+        .can_handle = twai_handle,
+        .can_general_config = &twai_general_config,
+        .can_timing_config = &twai_timing_config,
+        .can_filter_config = &twai_filter_config
+    };
+    xTaskCreate(can_listen, "sock_can", 4096, &sock_can_config, 4, NULL);
 
     // vTaskDelay(pdMS_TO_TICKS(1000));
     // size_t attinyload_bytes = attinyload_end - attinyload_start;
