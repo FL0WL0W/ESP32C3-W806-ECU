@@ -26,6 +26,11 @@
 #define W806_RESET_PIN 10
 #define W806_BOOT_PIN 7
 
+#define UPDI0_UART_RX_PIN 20
+#define UPDI0_UART_TX_PIN 21
+#define UPDI1_UART_RX_PIN 20
+#define UPDI1_UART_TX_PIN 21
+
 #define UPDI_KEYNVMPROG 0x4E564D50726F6720
 #define UPDI_KEYNVMERASE 0x4E564D4572617365
 
@@ -349,13 +354,42 @@ void wifi_init_softap()
     ESP_ERROR_CHECK(esp_wifi_start());
 }
 
+static void reset_w806()
+{
+    ESP_LOGI("W806", "Resetting");
+    ESP_ERROR_CHECK(gpio_set_level(W806_RESET_PIN, 0));
+    vTaskDelay(pdMS_TO_TICKS(1));
+    ESP_ERROR_CHECK(gpio_set_level(W806_RESET_PIN, 1));
+}
+
+static void reset_w806_task(void *arg)
+{
+    reset_w806();
+    vTaskDelete(NULL);
+}
+
+void W806_RX_Hook(const uint8_t *data, size_t len)
+{
+    if(strncmp((const char *)data, "AT+Z\r\n", 6) == 0) {
+        xTaskCreate(reset_w806_task, "reset_w806", 4096, 0, 8, NULL);
+    }
+}
+
+void UPDI0_RX_Hook(const uint8_t *data, size_t len)
+{
+}
+
+void UPDI1_RX_Hook(const uint8_t *data, size_t len)
+{
+}
+
 void app_main()
 {
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-      ESP_ERROR_CHECK(nvs_flash_erase());
-      ret = nvs_flash_init();
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
 
@@ -374,10 +408,8 @@ void app_main()
     io_conf.pull_down_en = 0;
     io_conf.pull_up_en = 0;
     ESP_ERROR_CHECK(gpio_config(&io_conf));
-    ESP_ERROR_CHECK(gpio_set_level(W806_RESET_PIN, 0));
     ESP_ERROR_CHECK(gpio_set_level(W806_BOOT_PIN, 1));
-    vTaskDelay(pdMS_TO_TICKS(10));
-    ESP_ERROR_CHECK(gpio_set_level(W806_RESET_PIN, 1));
+    reset_w806();
 
     //install uart listen services
     uart_listen_config_t uart_listen_config[UART_NUM_MAX];
@@ -407,10 +439,46 @@ void app_main()
         .uart_num = 0,
         .uart_config = &W806_uart_config,
         .rx_pin = W806_UART_RX_PIN,
-        .tx_pin = W806_UART_TX_PIN
+        .tx_pin = W806_UART_TX_PIN,
+        .sock_rx_hook = W806_RX_Hook
     };
 
     xTaskCreate(sock_uart, "w806_sock_uart", 4096, &W806_sock_uart_config, 5, NULL);
+
+    uart_config_t UPDI_uart_config = {
+        .baud_rate = 115200,
+        .data_bits = UART_DATA_8_BITS,
+        .parity    = UART_PARITY_EVEN,
+        .stop_bits = UART_STOP_BITS_2, 
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .source_clk = UART_SCLK_DEFAULT,
+    };
+
+    sock_uart_config_t UPDI0_sock_uart_config = 
+    {
+        .port = 8001,
+        .sock_rx_buffer_size = 1440,
+        .uart_num = 1,
+        .uart_config = &UPDI_uart_config,
+        .rx_pin = UPDI0_UART_RX_PIN,
+        .tx_pin = UPDI0_UART_TX_PIN,
+        .sock_rx_hook = UPDI0_RX_Hook
+    };
+
+    xTaskCreate(sock_uart, "updi0_sock_uart", 4096, &UPDI0_sock_uart_config, 5, NULL);
+
+    sock_uart_config_t UPDI1_sock_uart_config = 
+    {
+        .port = 8002,
+        .sock_rx_buffer_size = 1440,
+        .uart_num = 1,
+        .uart_config = &UPDI_uart_config,
+        .rx_pin = UPDI1_UART_RX_PIN,
+        .tx_pin = UPDI1_UART_TX_PIN,
+        .sock_rx_hook = UPDI1_RX_Hook
+    };
+
+    xTaskCreate(sock_uart, "updi1_sock_uart", 4096, &UPDI1_sock_uart_config, 5, NULL);
 
     // //install can listen service
     // twai_general_config_t twai_general_config = {

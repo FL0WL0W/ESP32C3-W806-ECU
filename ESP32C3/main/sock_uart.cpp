@@ -10,16 +10,6 @@ typedef struct
     int sock;
 } sock_uart_read_config_t;
 
-#define W806_RESET_PIN 10
-static void reset_w806(void *arg)
-{
-    ESP_LOGI("W806", "Resetting");
-    ESP_ERROR_CHECK(gpio_set_level(static_cast<gpio_num_t>(W806_RESET_PIN), 0));
-    vTaskDelay(pdMS_TO_TICKS(1));
-    ESP_ERROR_CHECK(gpio_set_level(static_cast<gpio_num_t>(W806_RESET_PIN), 1));
-    vTaskDelete(NULL);
-}
-
 void sock_uart_read(void *arg)
 {
     sock_uart_read_config_t *config = (sock_uart_read_config_t *)arg;
@@ -43,11 +33,10 @@ void sock_uart_read(void *arg)
         } else if (len < 0) {
             ESP_LOGE("SOCK_UART", "Error occurred during receiving: errno %d", len);
         } else {
-            if(strncmp((const char *)rx_buffer, "AT+Z\r\n", 6) == 0) {
-                xTaskCreate(reset_w806, "reset_w806", 4096, arg, 8, NULL);
-            } else {
-                uart_write_bytes(config->sock_uart_config->uart_num, rx_buffer, len);
+            if(config->sock_uart_config->sock_rx_hook != 0) {
+                config->sock_uart_config->sock_rx_hook(rx_buffer, len);
             }
+            uart_write_bytes(config->sock_uart_config->uart_num, rx_buffer, len);
         }
     }
 
@@ -119,6 +108,7 @@ extern "C" {
             setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &noDelay, sizeof(int));
             setsockopt(sock, IPPROTO_IP, IP_TOS, &tos, sizeof(int));
 
+            config->sock_rx_hook(0, 0);
             sock_uart_read_config_t sock_uart_read_config = 
             {
                 .sock_uart_config = config,

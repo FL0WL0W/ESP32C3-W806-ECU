@@ -17,6 +17,7 @@ typedef struct
     uart_config_t *uart_config;
     gpio_num_t tx_pin;
     gpio_num_t rx_pin;
+    void(*sock_rx_hook)(const uint8_t *, size_t);
 } sock_uart_config_t;
 
 void sock_uart(void *arg);
