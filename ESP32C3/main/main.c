@@ -26,10 +26,10 @@
 #define W806_RESET_PIN 10
 #define W806_BOOT_PIN 7
 
-#define UPDI0_UART_RX_PIN 20
-#define UPDI0_UART_TX_PIN 21
-#define UPDI1_UART_RX_PIN 20
-#define UPDI1_UART_TX_PIN 21
+#define UPDI1_UART_RX_PIN 5
+#define UPDI1_UART_TX_PIN 4
+#define UPDI2_UART_RX_PIN 7
+#define UPDI2_UART_TX_PIN 6
 
 #define UPDI_KEYNVMPROG 0x4E564D50726F6720
 #define UPDI_KEYNVMERASE 0x4E564D4572617365
@@ -375,12 +375,19 @@ void W806_RX_Hook(const uint8_t *data, size_t len)
     }
 }
 
-void UPDI0_RX_Hook(const uint8_t *data, size_t len)
-{
-}
-
+uint8_t updi_enabled = 0;
 void UPDI1_RX_Hook(const uint8_t *data, size_t len)
 {
+    if(updi_enabled != 1)
+        UPDI_Enable(1, UPDI1_UART_TX_PIN, UPDI1_UART_RX_PIN);
+    updi_enabled = 1;
+}
+
+void UPDI2_RX_Hook(const uint8_t *data, size_t len)
+{
+    if(updi_enabled != 2)
+        UPDI_Enable(1, UPDI2_UART_TX_PIN, UPDI2_UART_RX_PIN);
+    updi_enabled = 2;
 }
 
 void app_main()
@@ -454,22 +461,9 @@ void app_main()
         .source_clk = UART_SCLK_DEFAULT,
     };
 
-    sock_uart_config_t UPDI0_sock_uart_config = 
-    {
-        .port = 8001,
-        .sock_rx_buffer_size = 1440,
-        .uart_num = 1,
-        .uart_config = &UPDI_uart_config,
-        .rx_pin = UPDI0_UART_RX_PIN,
-        .tx_pin = UPDI0_UART_TX_PIN,
-        .sock_rx_hook = UPDI0_RX_Hook
-    };
-
-    xTaskCreate(sock_uart, "updi0_sock_uart", 4096, &UPDI0_sock_uart_config, 5, NULL);
-
     sock_uart_config_t UPDI1_sock_uart_config = 
     {
-        .port = 8002,
+        .port = 8001,
         .sock_rx_buffer_size = 1440,
         .uart_num = 1,
         .uart_config = &UPDI_uart_config,
@@ -478,7 +472,20 @@ void app_main()
         .sock_rx_hook = UPDI1_RX_Hook
     };
 
-    xTaskCreate(sock_uart, "updi1_sock_uart", 4096, &UPDI1_sock_uart_config, 5, NULL);
+    xTaskCreate(sock_uart, "UPDI1_sock_uart", 4096, &UPDI1_sock_uart_config, 5, NULL);
+
+    sock_uart_config_t UPDI2_sock_uart_config = 
+    {
+        .port = 8002,
+        .sock_rx_buffer_size = 1440,
+        .uart_num = 1,
+        .uart_config = &UPDI_uart_config,
+        .rx_pin = UPDI2_UART_RX_PIN,
+        .tx_pin = UPDI2_UART_TX_PIN,
+        .sock_rx_hook = UPDI2_RX_Hook
+    };
+
+    xTaskCreate(sock_uart, "UPDI2_sock_uart", 4096, &UPDI2_sock_uart_config, 5, NULL);
 
     // //install can listen service
     // twai_general_config_t twai_general_config = {
