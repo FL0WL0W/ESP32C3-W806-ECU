@@ -33,10 +33,13 @@ void sock_uart_read(void *arg)
         } else if (len < 0) {
             ESP_LOGE("SOCK_UART", "Error occurred during receiving: errno %d", len);
         } else {
+            bool perform_write = true;
             if(config->sock_uart_config->sock_rx_hook != 0) {
-                config->sock_uart_config->sock_rx_hook(rx_buffer, len);
+                perform_write = config->sock_uart_config->sock_rx_hook(rx_buffer, len);
             }
-            uart_write_bytes(config->sock_uart_config->uart_num, rx_buffer, len);
+            if(perform_write) {
+                uart_write_bytes(config->sock_uart_config->uart_num, rx_buffer, len);
+            }
         }
     }
 
