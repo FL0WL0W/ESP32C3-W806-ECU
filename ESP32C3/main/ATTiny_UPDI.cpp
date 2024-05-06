@@ -138,7 +138,7 @@ bool UPDI_Enable(uart_port_t uart_num, gpio_num_t tx_pin, gpio_num_t rx_pin)
 
     // Setup UPDI UART
     uart_config_t uart_config = {
-        .baud_rate = 38400,
+        .baud_rate = 115200,
         .data_bits = UART_DATA_8_BITS,
         .parity    = UART_PARITY_EVEN,
         .stop_bits = UART_STOP_BITS_2, 
@@ -180,7 +180,7 @@ bool UPDI_Enable(uart_port_t uart_num, gpio_num_t tx_pin, gpio_num_t rx_pin)
     UPDI_Idle();
 
     //for some reason the break setting the baud rate back doesn't work. so do it here.
-    uart_set_baudrate(UPDI_uart_num, 38400);
+    uart_set_baudrate(UPDI_uart_num, 115200);
 
     //remove guard time and verify
     ack_disabled = false;
