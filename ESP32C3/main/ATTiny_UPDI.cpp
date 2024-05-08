@@ -182,6 +182,10 @@ bool UPDI_Enable(uart_port_t uart_num, gpio_num_t tx_pin, gpio_num_t rx_pin)
     //for some reason the break setting the baud rate back doesn't work. so do it here.
     uart_set_baudrate(UPDI_uart_num, 115200);
 
+    //clear read buffer. this could get filled by who knows what before we get to here
+    uint8_t val;
+    while(UPDI_Read(&val)) ;
+
     //remove guard time and verify
     ack_disabled = false;
     uint8_t CTRLA = 0x06;

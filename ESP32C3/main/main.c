@@ -14,6 +14,8 @@
 #include "can_listen.h"
 #include "sock_uart.h"
 #include "sock_can.h"
+#include "mount.h"
+#include "http_server.h"
 #include <ATTiny_UPDI.h>
 
 #include "lwip/err.h"
@@ -222,6 +224,8 @@ void app_main()
 
     xTaskCreate(sock_uart, "UPDI2_sock_uart", 4096, &UPDI2_sock_uart_config, 5, NULL);
 
+
+
     // //install can listen service
     // twai_general_config_t twai_general_config = {
     //     .controller_id = 0,
@@ -264,6 +268,10 @@ void app_main()
     // UPDI_Program(1, 4, 5, attinyload, attinyload_bytes);
     
     // xTaskCreate(echo_task, "echo_task", 2048, NULL, 10, NULL);
+
+    mount_sd("SD");
+    mount_spiffs("SPIFFS");
+    start_http_server("SPIFFS");
 
     while(1) {
         vTaskDelay(1);
