@@ -39,7 +39,6 @@ extern "C" bool UPDI_Read(uint8_t *val)
     while(UPDI_rx_buffer_length < 1 && timeout++ < 100)
         vTaskDelay(pdMS_TO_TICKS(1));
     if(timeout > 99){
-        ESP_LOGE("UPDI", "UPDI_Read failed at %p", __builtin_return_address(0));
         return false;
     }
     // ESP_LOGE("UPDI", "read %x %d %d %d", UPDI_rx_buffer[UPDI_rx_buffer_index], UPDI_rx_buffer_index, UPDI_rx_buffer_length, timeout);

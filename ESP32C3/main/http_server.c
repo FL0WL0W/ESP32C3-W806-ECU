@@ -30,6 +30,8 @@
 #define SCRATCH_BUFSIZE  8192
 #define ATTINY_FLASH_SIZE 4096
 #define ATTINY_FLASH_SIZE_STR "4KB"
+#define W806_FLASH_SIZE 1073741824
+#define W806_FLASH_SIZE_STR "1MB"
 
 struct http_server_data {
     /* Base path of file storage */
@@ -102,14 +104,14 @@ static esp_err_t download_get_handler(httpd_req_t *req)
     if (!filename) {
         ESP_LOGE(TAG, "Filename is too long");
         /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Filename too long");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Filename too long\r\n");
         return ESP_FAIL;
     }
 
     if (stat(filepath, &file_stat) == -1) {
         ESP_LOGE(TAG, "Failed to stat file : %s", filepath);
         /* Respond with 404 Not Found */
-        httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "File does not exist");
+        httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "File does not exist\r\n");
         return ESP_FAIL;
     }
 
@@ -117,7 +119,7 @@ static esp_err_t download_get_handler(httpd_req_t *req)
     if (!fd) {
         ESP_LOGE(TAG, "Failed to read existing file : %s", filepath);
         /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to read existing file");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to read existing file\r\n");
         return ESP_FAIL;
     }
 
@@ -139,7 +141,7 @@ static esp_err_t download_get_handler(httpd_req_t *req)
                 /* Abort sending file */
                 httpd_resp_sendstr_chunk(req, NULL);
                 /* Respond with 500 Internal Server Error */
-                httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to send file");
+                httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to send file\r\n");
                return ESP_FAIL;
            }
         }
@@ -156,9 +158,164 @@ static esp_err_t download_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* Handler to upload flash to W806 */
+static esp_err_t upload_w806_post_handler(httpd_req_t *req)
+{
+    ESP_LOGI(TAG, "Receiving W806 Flash");
+
+    /* Retrieve the pointer to scratch buffer for temporary storage */
+    char *buf = ((struct http_server_data *)req->user_ctx)->scratch;
+    int received;
+
+    /* File cannot be larger than a limit */
+    if (req->content_len > W806_FLASH_SIZE) {
+        ESP_LOGE(TAG, "File too large : %d bytes", req->content_len);
+        /* Respond with 400 Bad Request */
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+                            "File size must be less than "
+                            W806_FLASH_SIZE_STR "!\r\n");
+        /* Return failure to close underlying connection else the
+         * incoming file content will keep the socket busy */
+        return ESP_FAIL;
+    }
+
+    /* Content length of the request gives
+     * the size of the file being uploaded */
+    int remaining = req->content_len;
+
+    while (remaining > 0) {
+
+        ESP_LOGI(TAG, "Remaining size : %d", remaining);
+        /* Receive the file part by part into a buffer */
+        if ((received = httpd_req_recv(req, buf, MIN(remaining, SCRATCH_BUFSIZE))) <= 0) {
+            if (received == HTTPD_SOCK_ERR_TIMEOUT) {
+                /* Retry if timeout occurred */
+                continue;
+            }
+
+            ESP_LOGE(TAG, "File reception failed!");
+            /* Respond with 500 Internal Server Error */
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to receive file\r\n");
+            return ESP_FAIL;
+        }
+
+        /* Write buffer content to W806 */
+        if (received /* TODO */) {
+
+            ESP_LOGE(TAG, "Program failed!");
+            /* Respond with 500 Internal Server Error */
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to program flash\r\n");
+            return ESP_FAIL;
+        }
+
+        /* Keep track of remaining size of
+         * the file left to be uploaded */
+        remaining -= received;
+    }
+
+    ESP_LOGI(TAG, "File reception complete");
+
+    /* Redirect onto root to see the updated file list */
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/");
+    httpd_resp_sendstr(req, "Flash programmed successfully\r\n");
+    return ESP_OK;
+}
+
+/* Handler to upload flash to ATTiny */
+static esp_err_t upload_attiny_post_handler(httpd_req_t *req)
+{
+    /* Skip leading "/upload/attiny" from URI to get refdes */
+    /* Note sizeof() counts NULL termination hence the -1 */
+    const char *attiny_refdes = req->uri + sizeof("/upload/attiny/") - 1;
+    if (!attiny_refdes || (attiny_refdes[0] != '1' && attiny_refdes[0] != '2') || attiny_refdes[1] != 0) {
+        /* Respond with 500 Internal Server Error */
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "refdes incorrect\r\n");
+        return ESP_FAIL;
+    }
+
+    gpio_num_t tx_pin = UPDI1_UART_TX_PIN;
+    gpio_num_t rx_pin = UPDI1_UART_RX_PIN;
+
+    if(attiny_refdes[0] == '2' ) {
+        tx_pin = UPDI2_UART_TX_PIN;
+        rx_pin = UPDI2_UART_RX_PIN;
+    }
+
+    ESP_LOGI(TAG, "Receiving Attiny Flash for U%s", attiny_refdes);
+
+    /* Retrieve the pointer to scratch buffer for temporary storage */
+    char *buf = ((struct http_server_data *)req->user_ctx)->scratch;
+    int received;
+
+    /* File cannot be larger than a limit */
+    if (req->content_len > ATTINY_FLASH_SIZE) {
+        ESP_LOGE(TAG, "File too large : %d bytes", req->content_len);
+        /* Respond with 400 Bad Request */
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+                            "File size must be less than "
+                            ATTINY_FLASH_SIZE_STR "!\r\n");
+        /* Return failure to close underlying connection else the
+         * incoming file content will keep the socket busy */
+        return ESP_FAIL;
+    }
+
+    /* Content length of the request gives
+     * the size of the file being uploaded */
+    int remaining = req->content_len;
+
+    while (remaining > 0) {
+
+        ESP_LOGI(TAG, "Remaining size : %d", remaining);
+        /* Receive the file part by part into a buffer */
+        if ((received = httpd_req_recv(req, buf, MIN(remaining, SCRATCH_BUFSIZE))) <= 0) {
+            if (received == HTTPD_SOCK_ERR_TIMEOUT) {
+                /* Retry if timeout occurred */
+                continue;
+            }
+
+            ESP_LOGE(TAG, "File reception failed!");
+            /* Respond with 500 Internal Server Error */
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to receive file\r\n");
+            return ESP_FAIL;
+        }
+
+        /* Write buffer content to ATTiny. retry once if failed first time */
+        if (received && (!UPDI_Program(1, tx_pin, rx_pin, (uint8_t *)buf, received))) {
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            if(!UPDI_Program(1, tx_pin, rx_pin, (uint8_t *)buf, received)) {
+                ESP_LOGE(TAG, "Program failed!");
+                /* Respond with 500 Internal Server Error */
+                httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to program flash\r\n");
+                return ESP_FAIL;
+            }
+        }
+
+        /* Keep track of remaining size of
+         * the file left to be uploaded */
+        remaining -= received;
+    }
+
+    ESP_LOGI(TAG, "File reception complete");
+
+    /* Redirect onto root to see the updated file list */
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/");
+    httpd_resp_sendstr(req, "Flash programmed successfully\r\n");
+    return ESP_OK;
+}
+
 /* Handler to upload a file onto the server */
 static esp_err_t upload_post_handler(httpd_req_t *req)
 {
+    if(strncmp(req->uri + sizeof("/upload"), "attiny/", sizeof("attiny/") - 1) == 0) {
+        return upload_attiny_post_handler(req);
+    }
+
+    if(strncmp(req->uri + sizeof("/upload"), "w806", sizeof("w806") - 1) == 0) {
+        return upload_w806_post_handler(req);
+    }
+
     char filepath[FILE_PATH_MAX];
     FILE *fd = NULL;
     struct stat file_stat;
@@ -169,21 +326,21 @@ static esp_err_t upload_post_handler(httpd_req_t *req)
                                              req->uri + sizeof("/upload") - 1, sizeof(filepath));
     if (!filename) {
         /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Filename too long");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Filename too longr\r\n");
         return ESP_FAIL;
     }
 
     /* Filename cannot have a trailing '/' */
     if (filename[strlen(filename) - 1] == '/') {
         ESP_LOGE(TAG, "Invalid filename : %s", filename);
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Invalid filename");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Invalid filename\r\n");
         return ESP_FAIL;
     }
 
     if (stat(filepath, &file_stat) == 0) {
         ESP_LOGE(TAG, "File already exists : %s", filepath);
         /* Respond with 400 Bad Request */
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "File already exists");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "File already exists\r\n");
         return ESP_FAIL;
     }
 
@@ -193,7 +350,7 @@ static esp_err_t upload_post_handler(httpd_req_t *req)
         /* Respond with 400 Bad Request */
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
                             "File size must be less than "
-                            MAX_FILE_SIZE_STR "!");
+                            MAX_FILE_SIZE_STR "!\r\n");
         /* Return failure to close underlying connection else the
          * incoming file content will keep the socket busy */
         return ESP_FAIL;
@@ -203,7 +360,7 @@ static esp_err_t upload_post_handler(httpd_req_t *req)
     if (!fd) {
         ESP_LOGE(TAG, "Failed to create file : %s", filepath);
         /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to create file");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to create file\r\n");
         return ESP_FAIL;
     }
 
@@ -234,7 +391,7 @@ static esp_err_t upload_post_handler(httpd_req_t *req)
 
             ESP_LOGE(TAG, "File reception failed!");
             /* Respond with 500 Internal Server Error */
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to receive file");
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to receive file\r\n");
             return ESP_FAIL;
         }
 
@@ -247,7 +404,7 @@ static esp_err_t upload_post_handler(httpd_req_t *req)
 
             ESP_LOGE(TAG, "File write failed!");
             /* Respond with 500 Internal Server Error */
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to write file to storage");
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to write file to storage\r\n");
             return ESP_FAIL;
         }
 
@@ -263,7 +420,7 @@ static esp_err_t upload_post_handler(httpd_req_t *req)
     /* Redirect onto root to see the updated file list */
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", "/");
-    httpd_resp_sendstr(req, "File uploaded successfully");
+    httpd_resp_sendstr(req, "File uploaded successfully\r\n");
     return ESP_OK;
 }
 
@@ -279,21 +436,21 @@ static esp_err_t delete_post_handler(httpd_req_t *req)
                                              req->uri  + sizeof("/delete") - 1, sizeof(filepath));
     if (!filename) {
         /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Filename too long");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Filename too long\r\n");
         return ESP_FAIL;
     }
 
     /* Filename cannot have a trailing '/' */
     if (filename[strlen(filename) - 1] == '/') {
         ESP_LOGE(TAG, "Invalid filename : %s", filename);
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Invalid filename");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Invalid filename\r\n");
         return ESP_FAIL;
     }
 
     if (stat(filepath, &file_stat) == -1) {
         ESP_LOGE(TAG, "File does not exist : %s", filename);
         /* Respond with 400 Bad Request */
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "File does not exist");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "File does not exist\r\n");
         return ESP_FAIL;
     }
 
@@ -304,88 +461,7 @@ static esp_err_t delete_post_handler(httpd_req_t *req)
     /* Redirect onto root to see the updated file list */
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", "/");
-    httpd_resp_sendstr(req, "File deleted successfully");
-    return ESP_OK;
-}
-
-/* Handler to upload flash to ATTiny */
-static esp_err_t upload_attiny_post_handler(httpd_req_t *req)
-{
-    /* Skip leading "/upload" from URI to get filename */
-    /* Note sizeof() counts NULL termination hence the -1 */
-    const char *attiny_refdes = req->uri + sizeof("/upload/attiny/");
-    if (!attiny_refdes || (attiny_refdes[0] != '1' && attiny_refdes[0] != '2') || attiny_refdes[1] != 0) {
-        /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "refdes incorrect");
-        return ESP_FAIL;
-    }
-
-    gpio_num_t tx_pin = UPDI1_UART_TX_PIN;
-    gpio_num_t rx_pin = UPDI1_UART_RX_PIN;
-
-    if(attiny_refdes[0] == '2' ) {
-        tx_pin = UPDI2_UART_TX_PIN;
-        rx_pin = UPDI2_UART_RX_PIN;
-    }
-
-    ESP_LOGI(TAG, "Receiving Attiny Flash for U%s", attiny_refdes);
-
-    /* Retrieve the pointer to scratch buffer for temporary storage */
-    char *buf = ((struct http_server_data *)req->user_ctx)->scratch;
-    int received;
-
-    /* File cannot be larger than a limit */
-    if (req->content_len > ATTINY_FLASH_SIZE) {
-        ESP_LOGE(TAG, "File too large : %d bytes", req->content_len);
-        /* Respond with 400 Bad Request */
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
-                            "File size must be less than "
-                            ATTINY_FLASH_SIZE_STR "!");
-        /* Return failure to close underlying connection else the
-         * incoming file content will keep the socket busy */
-        return ESP_FAIL;
-    }
-
-    /* Content length of the request gives
-     * the size of the file being uploaded */
-    int remaining = req->content_len;
-
-    while (remaining > 0) {
-
-        ESP_LOGI(TAG, "Remaining size : %d", remaining);
-        /* Receive the file part by part into a buffer */
-        if ((received = httpd_req_recv(req, buf, MIN(remaining, SCRATCH_BUFSIZE))) <= 0) {
-            if (received == HTTPD_SOCK_ERR_TIMEOUT) {
-                /* Retry if timeout occurred */
-                continue;
-            }
-
-            ESP_LOGE(TAG, "File reception failed!");
-            /* Respond with 500 Internal Server Error */
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to receive file");
-            return ESP_FAIL;
-        }
-
-        /* Write buffer content to file on storage */
-        if (received && (UPDI_Program(1, tx_pin, rx_pin, (uint8_t *)buf, received))) {
-
-            ESP_LOGE(TAG, "Program failed!");
-            /* Respond with 500 Internal Server Error */
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to write file to storage");
-            return ESP_FAIL;
-        }
-
-        /* Keep track of remaining size of
-         * the file left to be uploaded */
-        remaining -= received;
-    }
-
-    ESP_LOGI(TAG, "File reception complete");
-
-    /* Redirect onto root to see the updated file list */
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/");
-    httpd_resp_sendstr(req, "Flash programmed successfully");
+    httpd_resp_sendstr(req, "File deleted successfully\r\n");
     return ESP_OK;
 }
 
@@ -448,15 +524,6 @@ esp_err_t start_http_server(const char *base_path)
         .user_ctx  = server_data    // Pass server data as context
     };
     httpd_register_uri_handler(server, &file_delete);
-
-    /* URI handler for flashing ATTiny files */
-    httpd_uri_t attiny_flash = {
-        .uri       = "/upload/attiny/*",   // Match all URIs of type /upload/path/to/file
-        .method    = HTTP_POST,
-        .handler   = upload_attiny_post_handler,
-        .user_ctx  = server_data    // Pass server data as context
-    };
-    httpd_register_uri_handler(server, &attiny_flash);
 
     return ESP_OK;
 }
