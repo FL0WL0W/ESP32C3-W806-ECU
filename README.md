@@ -15,7 +15,7 @@ sudo socat -v -x PTY,link="/dev/UPDI2",raw,echo=0,group-late=tty,mode=660 TCP4:1
 # HTTP Upload
 ### Upload Flash To W806
 ```
-curl --data-binary @flash.bin http://192.168.4.1/upload/w806
+curl --data-binary @W806.fls http://192.168.4.1/upload/w806
 ```
 ### Upload Flash To ATTiny427
 ```

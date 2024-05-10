@@ -14,7 +14,6 @@ void sock_uart_read(void *arg)
 {
     sock_uart_read_config_t *config = (sock_uart_read_config_t *)arg;
 
-    while(!uart_is_driver_installed(config->sock_uart_config->uart_num)) vTaskDelay(pdMS_TO_TICKS(100));//wait for uart driver to be installed by uart_listen
     ESP_ERROR_CHECK(uart_param_config(config->sock_uart_config->uart_num, config->sock_uart_config->uart_config));
     ESP_ERROR_CHECK(uart_set_pin(config->sock_uart_config->uart_num, config->sock_uart_config->rx_pin, config->sock_uart_config->tx_pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
 
@@ -91,6 +90,10 @@ extern "C" {
             ESP_LOGE("SOCK_UART", "Error occurred during listen: errno %d", errno);
             goto sock_uart_cleanup;
         }
+
+        while(!uart_is_driver_installed(config->uart_num)) vTaskDelay(pdMS_TO_TICKS(100));//wait for uart driver to be installed by uart_listen
+        ESP_ERROR_CHECK(uart_param_config(config->uart_num, config->uart_config));
+        ESP_ERROR_CHECK(uart_set_pin(config->uart_num, config->rx_pin, config->tx_pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
 
         while (1) 
         {

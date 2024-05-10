@@ -6,6 +6,9 @@
 #include <dirent.h>
 #include "http_server.h"
 #include "ATTiny_UPDI.h"
+#include "w806.h"
+#include "freertos/ringbuf.h"
+#include "uart_listen.h"
 
 #include "esp_log.h"
 
@@ -13,10 +16,10 @@
 #include "esp_spiffs.h"
 #include "esp_http_server.h"
 
-#define UPDI1_UART_RX_PIN 5
-#define UPDI1_UART_TX_PIN 4
-#define UPDI2_UART_RX_PIN 7
-#define UPDI2_UART_TX_PIN 6
+#define UPDI1_UART_RX_PIN (gpio_num_t)5
+#define UPDI1_UART_TX_PIN (gpio_num_t)4
+#define UPDI2_UART_RX_PIN (gpio_num_t)7
+#define UPDI2_UART_TX_PIN (gpio_num_t)6
 
 /* Max length a file path can have on storage */
 #define FILE_PATH_MAX (ESP_VFS_PATH_MAX + CONFIG_SPIFFS_OBJ_NAME_LEN)
@@ -158,14 +161,34 @@ static esp_err_t download_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+int64_t get_timestamp() {
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	return (tv.tv_sec * 1000000LL + tv.tv_usec);
+}
+
 /* Handler to upload flash to W806 */
 static esp_err_t upload_w806_post_handler(httpd_req_t *req)
 {
     ESP_LOGI(TAG, "Receiving W806 Flash");
+    int retry_num = 0;
+    unsigned short crc_value = 0;
+    unsigned char ack_id = 0x06;
+    int pack_counter = 0;
 
     /* Retrieve the pointer to scratch buffer for temporary storage */
     char *buf = ((struct http_server_data *)req->user_ctx)->scratch;
     int received;
+    esp_err_t ret = ESP_OK;
+
+    uart_config_t uart_config = {
+        .baud_rate = 2000000,
+        .data_bits = UART_DATA_8_BITS,
+        .parity    = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .source_clk = UART_SCLK_DEFAULT,
+    };
 
     /* File cannot be larger than a limit */
     if (req->content_len > W806_FLASH_SIZE) {
@@ -183,29 +206,291 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
      * the size of the file being uploaded */
     int remaining = req->content_len;
 
-    while (remaining > 0) {
+    //Create ring buffer
+    RingbufHandle_t rxbuf_handle;
+    rxbuf_handle = xRingbufferCreate(1028, RINGBUF_TYPE_BYTEBUF);
+    if (rxbuf_handle == NULL) {
+        ESP_LOGE(TAG, "Failed to create ring buffer!");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to create ring buffer\r\n");
+        return ESP_FAIL;
+    }
+
+    auto rx_listen_callback_iterator = uart_listen_add_callback(W806_UART_NUM, [&](const uint8_t *rx_buffer, size_t len) {
+        xRingbufferSend(rxbuf_handle, rx_buffer, len, pdMS_TO_TICKS(1000));
+    });
+
+    //reset w806
+    reset_w806();
+
+    //interrupt startup
+    int cnt = 0;
+    unsigned char esc_key = 27;
+    for (int i = 0; i < 100; i++)
+    {
+        uart_write_bytes(W806_UART_NUM, &esc_key, 1);
+        size_t size = 0;
+        char *ch = (char *)xRingbufferReceiveUpTo(rxbuf_handle, &size, pdMS_TO_TICKS(10), 1);
+        if (size > 0)
+        {
+            if (('C' == *ch) || ('P' == *ch))
+                cnt++;
+            else
+                cnt = 0;
+            vRingbufferReturnItem(rxbuf_handle, ch);
+            break;
+        }
+    }
+
+    //sync
+    int64_t start = get_timestamp(); 
+    char macstr[17] = {0};
+    int offset = 0;
+    do
+    {
+        size_t size = 0;
+        char *ch = (char *)xRingbufferReceiveUpTo(rxbuf_handle, &size, pdMS_TO_TICKS(1000), 1);
+
+        if (size > 0)
+        {
+            if (('C' == *ch) || ('P' == *ch))
+                cnt++;
+            else
+                cnt = 0;
+            vRingbufferReturnItem(rxbuf_handle, ch);
+        }
+        else
+        {
+            cnt = 0;
+            //reset w806
+            reset_w806();
+
+            for (int i = 0; i < 100; i++)
+            {
+                uart_write_bytes(W806_UART_NUM, &esc_key, 1);
+                ch = (char *)xRingbufferReceiveUpTo(rxbuf_handle, &size, pdMS_TO_TICKS(10), 1);
+                if (size > 0)
+                {
+                    if (('C' == *ch) || ('P' == *ch))
+                        cnt++;
+                    else
+                        cnt = 0;
+                    vRingbufferReturnItem(rxbuf_handle, ch);
+                    break;
+                }
+            }
+        }
+
+        if((get_timestamp() - start) > 10000000)
+        {
+            ESP_LOGE(TAG, "Failed to sync");
+            /* Respond with 500 Internal Server Error */
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to sync\r\n");
+            ret = ESP_FAIL;
+            goto upload_w806_post_handler_cleanup;
+        }
+    } while (cnt < 3);
+
+    //change baud rate to 2M
+    uart_write_bytes(W806_UART_NUM, wm_tool_chip_cmd_b2000000, sizeof(wm_tool_chip_cmd_b2000000));
+    vTaskDelay(pdMS_TO_TICKS(100));
+    ESP_ERROR_CHECK(uart_param_config(W806_UART_NUM, &uart_config));
+
+    //get MAC to verify connection
+    uart_write_bytes(W806_UART_NUM, wm_tool_chip_cmd_get_mac, sizeof(wm_tool_chip_cmd_get_mac));
+    start = get_timestamp(); 
+    do
+    {
+        size_t size = 0;
+        char *ch = (char *)xRingbufferReceive(rxbuf_handle, &size, pdMS_TO_TICKS(1000));
+        if(size > 0)
+        {
+            if(offset == 0) 
+            {
+                for(int i = 0; i < size; i++)
+                {
+                    if(ch[i] == 'M')
+                    {
+                        size_t len = size - i;
+                        if(len > 16)
+                            len = 16;
+                        memcpy(macstr, ch + i, len);
+                        offset = len;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                size_t len = size + offset;
+                if(len > 16)
+                    len = 16;
+                memcpy(macstr + offset, ch, len - offset);
+                offset = len;
+            }
+
+            vRingbufferReturnItem(rxbuf_handle, ch);
+        }
+
+        if(offset == 16)
+        {
+            macstr[16] = 0;
+            ESP_LOGI(TAG, "%s", macstr);
+            break;
+        }
+
+        if((get_timestamp() - start) > 10000000)
+        {
+            ESP_LOGE(TAG, "Failed to get MAC");
+            /* Respond with 500 Internal Server Error */
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to get MAC\r\n");
+            ret = ESP_FAIL;
+            goto upload_w806_post_handler_cleanup;
+        }
+    } while (1);
+
+    while (ack_id != 0x04) {
 
         ESP_LOGI(TAG, "Remaining size : %d", remaining);
         /* Receive the file part by part into a buffer */
-        if ((received = httpd_req_recv(req, buf, MIN(remaining, SCRATCH_BUFSIZE))) <= 0) {
-            if (received == HTTPD_SOCK_ERR_TIMEOUT) {
-                /* Retry if timeout occurred */
-                continue;
-            }
+        if(remaining > 0) {
+            if (remaining > 0 && (received = httpd_req_recv(req, buf + 3, MIN(remaining, W806_XMODEM_DATA_SIZE))) <= 0) {
+                if (received == HTTPD_SOCK_ERR_TIMEOUT) {
+                    /* Retry if timeout occurred */
+                    continue;
+                }
 
-            ESP_LOGE(TAG, "File reception failed!");
-            /* Respond with 500 Internal Server Error */
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to receive file\r\n");
-            return ESP_FAIL;
+                ESP_LOGE(TAG, "File reception failed!");
+                /* Respond with 500 Internal Server Error */
+                httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to receive file\r\n");
+                ret = ESP_FAIL;
+                goto upload_w806_post_handler_cleanup;
+            }
+        } else {
+            received = -1;
         }
 
         /* Write buffer content to W806 */
-        if (received /* TODO */) {
+        switch(ack_id)
+        {
+            case 0x06:
+            {
+                retry_num = 0;
+                pack_counter++;
 
-            ESP_LOGE(TAG, "Program failed!");
-            /* Respond with 500 Internal Server Error */
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to program flash\r\n");
-            return ESP_FAIL;
+                if (received > 0)
+                {
+                    if (received < W806_XMODEM_DATA_SIZE)
+                    {
+                        for ( ; received < W806_XMODEM_DATA_SIZE; received++)
+                            buf[received + 3] = 0x0;
+                    }
+
+                    buf[0] = 0x02;
+                    buf[1] = (char)pack_counter;
+                    buf[2] = (char)(255 - buf[1]);
+
+                    crc_value = w806_crc16(buf + 3, W806_XMODEM_DATA_SIZE);
+
+                    buf[W806_XMODEM_DATA_SIZE + 3]=(unsigned char)(crc_value >> 8);
+                    buf[W806_XMODEM_DATA_SIZE + 4]=(unsigned char)(crc_value);
+
+                    //clear rx buffer
+                    size_t size = 0;
+                    char *ch = (char *)xRingbufferReceive(rxbuf_handle, &size, 0);
+                    if(size > 0)
+                        vRingbufferReturnItem(rxbuf_handle, ch);
+
+                    //send frame
+                    uart_write_bytes(W806_UART_NUM, buf, W806_XMODEM_DATA_SIZE + 5);
+
+                    //wait for ACK
+                    ch = (char *)xRingbufferReceiveUpTo(rxbuf_handle, &size, pdMS_TO_TICKS(1000), 1);
+                    if(size > 0)
+                        ack_id = *ch;
+                    else
+                        ack_id = 0x15;
+                    if(size > 0)
+                        vRingbufferReturnItem(rxbuf_handle, ch);
+                }
+                else
+                {
+                    ack_id = 0x04;
+
+                    while (ack_id != 0x06)
+                    {
+                        ack_id = 0x04;
+                        //clear rx buffer
+                        size_t size = 0;
+                        char *ch = (char *)xRingbufferReceive(rxbuf_handle, &size, 0);
+                        if(size > 0)
+                            vRingbufferReturnItem(rxbuf_handle, ch);
+
+                        //send frame
+                        uart_write_bytes(W806_UART_NUM, &ack_id, 1);
+
+                        //wait for ACK
+                        ch = (char *)xRingbufferReceiveUpTo(rxbuf_handle, &size, pdMS_TO_TICKS(1000), 1);
+                        if(size > 0)
+                            ack_id = *ch;
+                        else
+                            ack_id = 0x15;
+                        if(size > 0)
+                            vRingbufferReturnItem(rxbuf_handle, ch);
+                    }
+                    ack_id = 0x04;
+                }
+                break;
+            }
+            case 0x15:
+            {
+                if ( retry_num++ > 100)
+                {
+                    ESP_LOGE(TAG, "retry too many times, quit!");
+                    /* Respond with 500 Internal Server Error */
+                    httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Timed out trying to program flash\r\n");
+                    ret = ESP_FAIL;
+                    goto upload_w806_post_handler_cleanup;
+                }
+                else
+                {
+                    //clear rx buffer
+                    size_t size = 0;
+                    char *ch = (char *)xRingbufferReceive(rxbuf_handle, &size, 0);
+                    if(size > 0)
+                        vRingbufferReturnItem(rxbuf_handle, ch);
+
+                    //send frame
+                    uart_write_bytes(W806_UART_NUM, buf, W806_XMODEM_DATA_SIZE + 5);
+
+                    //wait for ACK
+                    ch = (char *)xRingbufferReceiveUpTo(rxbuf_handle, &size, pdMS_TO_TICKS(1000), 1);
+                    if(size > 0)
+                        ack_id = *ch;
+                    else
+                        ack_id = 0x15;
+                    if(size > 0)
+                        vRingbufferReturnItem(rxbuf_handle, ch);
+                }
+                break;
+            }
+            case 0x18: //waiting
+            {
+                size_t size = 0;
+                char *ch = (char *)xRingbufferReceive(rxbuf_handle, &size, 0);
+                if(size > 0) {
+                    vRingbufferReturnItem(rxbuf_handle, ch);
+                    ack_id = ch[size-1];
+                    break;
+                }
+            }
+            default:
+            {
+                ESP_LOGE(TAG, "Program failed! Unkown xmodem protocol [%x].", ack_id);
+                /* Respond with 500 Internal Server Error */
+                httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to program flash. Unkown xmodem protocol.\r\n");
+                ret = ESP_FAIL;
+                goto upload_w806_post_handler_cleanup;
+            }
         }
 
         /* Keep track of remaining size of
@@ -219,7 +504,14 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", "/");
     httpd_resp_sendstr(req, "Flash programmed successfully\r\n");
-    return ESP_OK;
+upload_w806_post_handler_cleanup:
+    uart_listen_remove_callback(W806_UART_NUM, rx_listen_callback_iterator);
+    vRingbufferDelete(rxbuf_handle);
+    reset_w806();
+    //change baud rate back to 115200
+    uart_config.baud_rate = 115200;
+    ESP_ERROR_CHECK(uart_param_config(W806_UART_NUM, &uart_config));
+    return ret;
 }
 
 /* Handler to upload flash to ATTiny */
@@ -281,9 +573,9 @@ static esp_err_t upload_attiny_post_handler(httpd_req_t *req)
         }
 
         /* Write buffer content to ATTiny. retry once if failed first time */
-        if (received && (!UPDI_Program(1, tx_pin, rx_pin, (uint8_t *)buf, received))) {
+        if (received && (!UPDI_Program((uart_port_t)1, tx_pin, rx_pin, (uint8_t *)buf, received))) {
             vTaskDelay(pdMS_TO_TICKS(1000));
-            if(!UPDI_Program(1, tx_pin, rx_pin, (uint8_t *)buf, received)) {
+            if(!UPDI_Program((uart_port_t)1, tx_pin, rx_pin, (uint8_t *)buf, received)) {
                 ESP_LOGE(TAG, "Program failed!");
                 /* Respond with 500 Internal Server Error */
                 httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to program flash\r\n");
@@ -476,7 +768,7 @@ esp_err_t start_http_server(const char *base_path)
     }
 
     /* Allocate memory for server data */
-    server_data = calloc(1, sizeof(struct http_server_data));
+    server_data = (http_server_data *)calloc(1, sizeof(struct http_server_data));
     if (!server_data) {
         ESP_LOGE(TAG, "Failed to allocate memory for server data");
         return ESP_ERR_NO_MEM;

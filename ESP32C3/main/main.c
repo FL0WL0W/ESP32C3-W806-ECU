@@ -22,11 +22,7 @@
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
-
-#define W806_UART_RX_PIN 20
-#define W806_UART_TX_PIN 21
-#define W806_RESET_PIN 10
-#define W806_BOOT_PIN 7
+#include "w806.h"
 
 #define UPDI1_UART_RX_PIN 5
 #define UPDI1_UART_TX_PIN 4
@@ -62,20 +58,6 @@ void wifi_init_softap()
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
-}
-
-static void reset_w806()
-{
-    ESP_LOGI("W806", "Resetting");
-    ESP_ERROR_CHECK(gpio_set_level(W806_RESET_PIN, 0));
-    vTaskDelay(pdMS_TO_TICKS(1));
-    ESP_ERROR_CHECK(gpio_set_level(W806_RESET_PIN, 1));
-}
-
-static void reset_w806_task(void *arg)
-{
-    reset_w806();
-    vTaskDelete(NULL);
 }
 
 bool W806_RX_Hook(const uint8_t *data, size_t len)
@@ -190,7 +172,7 @@ void app_main()
     xTaskCreate(sock_uart, "w806_sock_uart", 4096, &W806_sock_uart_config, 5, NULL);
 
     uart_config_t UPDI_uart_config = {
-        .baud_rate = 115200,
+        .baud_rate = 100000,
         .data_bits = UART_DATA_8_BITS,
         .parity    = UART_PARITY_EVEN,
         .stop_bits = UART_STOP_BITS_2, 

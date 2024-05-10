@@ -116,6 +116,18 @@ bool UPDI_EnableAck()
 
 bool UPDI_Enable(uart_port_t uart_num, gpio_num_t tx_pin, gpio_num_t rx_pin)
 {
+    // Setup UPDI UART
+    uart_config_t uart_config = {
+        .baud_rate = 100000,
+        .data_bits = UART_DATA_8_BITS,
+        .parity    = UART_PARITY_EVEN,
+        .stop_bits = UART_STOP_BITS_2, 
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .source_clk = UART_SCLK_DEFAULT,
+    };
+    ESP_ERROR_CHECK(uart_param_config(uart_num, &uart_config));
+    gpio_set_pull_mode(rx_pin, GPIO_FLOATING);
+
     //start UPDI
     gpio_set_level(tx_pin, 1);
     gpio_set_direction(tx_pin, GPIO_MODE_OUTPUT);
@@ -134,24 +146,9 @@ bool UPDI_Enable(uart_port_t uart_num, gpio_num_t tx_pin, gpio_num_t rx_pin)
     //wait for enable pulse end
     uint32_t i = 0;
     while(!gpio_get_level(rx_pin) && i++ < 15) esp_rom_delay_us(100);
-
-    // Setup UPDI UART
-    uart_config_t uart_config = {
-        .baud_rate = 115200,
-        .data_bits = UART_DATA_8_BITS,
-        .parity    = UART_PARITY_EVEN,
-        .stop_bits = UART_STOP_BITS_2, 
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_DEFAULT,
-    };
-
-    // ESP_ERROR_CHECK(uart_driver_install(uart_num, 1024, 0, 0, NULL, 0));
-    // ESP_ERROR_CHECK(uart_set_rx_full_threshold(uart_num, 1));
-    ESP_ERROR_CHECK(uart_param_config(uart_num, &uart_config));
-    // ESP_ERROR_CHECK(uart_set_mode(uart_num, UART_MODE_RS485_HALF_DUPLEX));
-    ESP_ERROR_CHECK(uart_set_pin(uart_num, tx_pin, rx_pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
-    gpio_set_pull_mode(rx_pin, GPIO_FLOATING);
     
+    ESP_ERROR_CHECK(uart_set_pin(uart_num, tx_pin, rx_pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
+
     // Setup UPDI Callback
     if(UPDI_callback_registered) {
         uart_listen_remove_callback(UPDI_uart_num, UPDI_uart_callback_iterator);
