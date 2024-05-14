@@ -1,0 +1,10 @@
+../../../bin/build/W806/obj/platform/component/FreeRTOS/event_groups.o: \
+ event_groups.c include/FreeRTOS.h include/FreeRTOSConfig.h \
+ include/projdefs.h include/portable.h include/deprecated_definitions.h \
+ ../../../platform/component/FreeRTOS/portable/xt804/portmacro.h \
+ ../../../include/arch/xt804/csi_core/csi_core.h \
+ ../../../include/arch/xt804/csi_core/core_804.h \
+ ../../../include/arch/xt804/csi_config.h \
+ ../../../include/arch/xt804/csi_core/csi_gcc.h include/mpu_wrappers.h \
+ include/task.h include/list.h include/timers.h include/task.h \
+ include/event_groups.h include/timers.h

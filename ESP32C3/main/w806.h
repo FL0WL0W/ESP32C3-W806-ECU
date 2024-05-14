@@ -10,7 +10,7 @@
 #define W806_UART_RX_PIN (gpio_num_t)20
 #define W806_UART_TX_PIN (gpio_num_t)21
 #define W806_RESET_PIN (gpio_num_t)10
-#define W806_BOOT_PIN (gpio_num_t)7
+#define W806_BOOT_PIN (gpio_num_t)6
 #define W806_XMODEM_DATA_SIZE 1024
 
 #ifdef __cplusplus
@@ -32,6 +32,18 @@ static inline void reset_w806()
     ESP_ERROR_CHECK(gpio_set_level(W806_RESET_PIN, 0));
     vTaskDelay(pdMS_TO_TICKS(1));
     ESP_ERROR_CHECK(gpio_set_level(W806_RESET_PIN, 1));
+}
+static inline void bootset_w806()
+{
+    ESP_LOGI("W806", "Boot Set");
+    ESP_ERROR_CHECK(gpio_set_level(W806_BOOT_PIN, 1));
+    ESP_ERROR_CHECK(gpio_set_direction(W806_BOOT_PIN, GPIO_MODE_OUTPUT));
+}
+static inline void bootreset_w806()
+{
+    ESP_LOGI("W806", "Boot Reset");
+    ESP_ERROR_CHECK(gpio_set_level(W806_BOOT_PIN, 0));
+    ESP_ERROR_CHECK(gpio_set_direction(W806_BOOT_PIN, GPIO_MODE_OUTPUT));
 }
 
 static void reset_w806_task(void *arg)

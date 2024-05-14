@@ -215,12 +215,13 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
+    //reset w806
+    bootreset_w806();
+    reset_w806();
+
     auto rx_listen_callback_iterator = uart_listen_add_callback(W806_UART_NUM, [&](const uint8_t *rx_buffer, size_t len) {
         xRingbufferSend(rxbuf_handle, rx_buffer, len, pdMS_TO_TICKS(1000));
     });
-
-    //reset w806
-    reset_w806();
 
     //interrupt startup
     int cnt = 0;
@@ -262,6 +263,7 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
         {
             cnt = 0;
             //reset w806
+            bootreset_w806();
             reset_w806();
 
             for (int i = 0; i < 100; i++)
@@ -507,6 +509,7 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
 upload_w806_post_handler_cleanup:
     uart_listen_remove_callback(W806_UART_NUM, rx_listen_callback_iterator);
     vRingbufferDelete(rxbuf_handle);
+    bootset_w806();
     reset_w806();
     //change baud rate back to 115200
     uart_config.baud_rate = 115200;

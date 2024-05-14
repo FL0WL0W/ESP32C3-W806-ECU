@@ -134,7 +134,7 @@ void app_main()
     io_conf.pull_down_en = 0;
     io_conf.pull_up_en = 0;
     ESP_ERROR_CHECK(gpio_config(&io_conf));
-    ESP_ERROR_CHECK(gpio_set_level(W806_BOOT_PIN, 1));
+    bootset_w806();
     reset_w806();
 
     //install uart listen services
@@ -251,9 +251,9 @@ void app_main()
     
     // xTaskCreate(echo_task, "echo_task", 2048, NULL, 10, NULL);
 
-    mount_sd("SD");
-    mount_spiffs("SPIFFS");
-    start_http_server("SPIFFS");
+    mount_sd("/SD");
+    mount_spiffs("/SPIFFS");
+    start_http_server("/SPIFFS");
 
     while(1) {
         vTaskDelay(1);
