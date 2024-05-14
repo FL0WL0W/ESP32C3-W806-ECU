@@ -53,7 +53,7 @@ int main(void)
     tx_data[1] = 0x1C;
     tx_data[2] = 0xE0;//analog enable pins 5-7
     tx_data[3] = 0x01;//analog enable pins 8, 10-15
-    tx_data[4] = 0x0F;// analog accumulate to 16 bits
+    tx_data[4] = 0x8F;// analog accumulate to 16 bits and reset accumulator
     tx_data[5] = 0x00;//
 
     //setup ADC
