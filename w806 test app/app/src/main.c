@@ -48,36 +48,37 @@ int main(void)
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_SET);
 
+    int setupIterator = 0;
     //adc channels enabled
-    tx_data[0] = 0xE4;
-    tx_data[1] = 0x1C;
-    tx_data[2] = 0xE0;//analog enable pins 5-7
-    tx_data[3] = 0x01;//analog enable pins 8, 10-15
-    tx_data[4] = 0x8F;// analog accumulate to 16 bits and reset accumulator
-    tx_data[5] = 0x00;//
+    tx_data[setupIterator++] = 0xE4;
+    tx_data[setupIterator++] = 0x1C;
+    tx_data[setupIterator++] = 0x60;//analog enable pins 5-7
+    tx_data[setupIterator++] = 0x00;//analog enable pins 8, 10-15
+    tx_data[setupIterator++] = 0x8F;// analog accumulate to 16 bits and reset accumulator
+    tx_data[setupIterator++] = 0x00;//
 
     //setup ADC
-    tx_data[6] = 0x85; //write 5 bytes to 16 bit address
-    tx_data[7] = 0x06; //address high
-    tx_data[8] = 0x00; //address low
-    tx_data[9] = 0b00100001; // enable with low latency
-    tx_data[10] = 0x01; // prescaler DIV4 to get ADCCLK 5MHZ
-    tx_data[11] = 0xA0; // set timebase and VDD as reference
-    tx_data[12] = 0x00; // no window source mode
-    tx_data[13] = 0x01; //enable RESRDY intterupt
+    tx_data[setupIterator++] = 0x85; //write 5 bytes to 16 bit address
+    tx_data[setupIterator++] = 0x06; //address high
+    tx_data[setupIterator++] = 0x00; //address low
+    tx_data[setupIterator++] = 0b00100001; // enable with low latency
+    tx_data[setupIterator++] = 0x01; // prescaler DIV4 to get ADCCLK 5MHZ
+    tx_data[setupIterator++] = 0xA0; // set timebase and VDD as reference
+    tx_data[setupIterator++] = 0x00; // no window source mode
+    tx_data[setupIterator++] = 0x01; //enable RESRDY intterupt
 
     //start ADC
-    tx_data[14] = 0xC3; //write 3 bytes to 8 bit address using existing high byte
-    tx_data[15] = 0x08; //address low
-    tx_data[16] = 0x05; //SAMPDUR = 5. this give a sample duration of 4us
-    tx_data[17] = 0x00; //no accumulation, accumulation done in software so the readings are evenly spaced
-    tx_data[18] = 0x11; //single 12 bit mode and start
+    tx_data[setupIterator++] = 0xC3; //write 3 bytes to 8 bit address using existing high byte
+    tx_data[setupIterator++] = 0x08; //address low
+    tx_data[setupIterator++] = 0x05; //SAMPDUR = 5. this give a sample duration of 4us
+    tx_data[setupIterator++] = 0x00; //no accumulation, accumulation done in software so the readings are evenly spaced
+    tx_data[setupIterator++] = 0x11; //single 12 bit mode and start
 
     //dummy
-    tx_data[19] = 0x00;
-    tx_data[20] = 0x00;
+    tx_data[setupIterator++] = 0x00;
+    tx_data[setupIterator++] = 0x00;
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_RESET);
-    HAL_SPI_TransmitReceive(&hspi, (uint8_t *)tx_data, (uint8_t *)rx_data, 21, 1000);
+    HAL_SPI_TransmitReceive(&hspi, (uint8_t *)tx_data, (uint8_t *)rx_data, setupIterator, 1000);
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_SET);
     printf(
 //"tx: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\r\n
