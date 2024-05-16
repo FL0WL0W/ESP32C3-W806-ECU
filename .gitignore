@@ -1,3 +1,4 @@
 ESP32C3/build/*
 ESP32C3/.vscode/*
 ESP32C3/.devcontainer/*
+w806 test app/bin/*
