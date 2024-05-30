@@ -167,7 +167,7 @@ int main(void)
         printf("\r\nrx: ");
         printHexLine(&rx_data[2]);
         printHexLine(&rx_data[18]);
-        printf("%02x %02x %02x %02x", rx_data[32], rx_data[33], rx_data[34], rx_data[35]);
+        printf("%02x %02x", rx_data[34], rx_data[35]);
     }
 }
 
