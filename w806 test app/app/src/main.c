@@ -52,9 +52,9 @@ int main(void)
     //adc channels enabled
     tx_data[setupIterator++] = 0xE4;
     tx_data[setupIterator++] = 0x1C;
-    tx_data[setupIterator++] = 0x60;//analog enable pins 5-7
+    tx_data[setupIterator++] = 0xC0;//analog enable pins 5-7
     tx_data[setupIterator++] = 0x00;//analog enable pins 8, 10-15
-    tx_data[setupIterator++] = 0x8F;// analog accumulate to 16 bits and reset accumulator
+    tx_data[setupIterator++] = 0xBF;// analog accumulate to 16 bits and reset accumulator
     tx_data[setupIterator++] = 0x00;//
 
     //setup ADC
@@ -74,32 +74,66 @@ int main(void)
     tx_data[setupIterator++] = 0x00; //no accumulation, accumulation done in software so the readings are evenly spaced
     tx_data[setupIterator++] = 0x11; //single 12 bit mode and start
 
+    //setup SENT Event
+    tx_data[setupIterator++] = 0x81; //write 1 byte to 16 bit address
+    tx_data[setupIterator++] = 0x01; //address high
+    tx_data[setupIterator++] = 0x90; //address low
+    tx_data[setupIterator++] = 0x45; //PA5
+    tx_data[setupIterator++] = 0xC1; //write 1 byte to 16 bit address using existing high byte
+    tx_data[setupIterator++] = 0xB2; //address low
+    tx_data[setupIterator++] = 0x01; //Channel0
+    tx_data[setupIterator++] = 0xC1; //write 1 byte to 16 bit address using existing high byte
+    tx_data[setupIterator++] = 0xB0; //address low
+    tx_data[setupIterator++] = 0x01; //Channel0
+
+    //setup SENT
+    tx_data[setupIterator++] = 0x82; //write 2 bytes to 16 bit address
+    tx_data[setupIterator++] = 0x0A; //address high
+    tx_data[setupIterator++] = 0x94; //address low
+    tx_data[setupIterator++] = 0b00000001; //CAPT event
+    tx_data[setupIterator++] = 0x1; //CAPT interrupt
+    tx_data[setupIterator++] = 0xC2; //write 4 bytes to 16 bit address using existing high byte
+    tx_data[setupIterator++] = 0x90; //address low
+    tx_data[setupIterator++] = 0b00000011; //enable CLK_PER/2
+    tx_data[setupIterator++] = 0x3; //Measure Period
+
+    //setup SENT
+    tx_data[setupIterator++] = 0x82; //write 2 bytes to 16 bit address
+    tx_data[setupIterator++] = 0x0A; //address high
+    tx_data[setupIterator++] = 0x84; //address low
+    tx_data[setupIterator++] = 0b00000001; //CAPT event
+    tx_data[setupIterator++] = 0x1; //CAPT interrupt
+    tx_data[setupIterator++] = 0xC2; //write 4 bytes to 16 bit address using existing high byte
+    tx_data[setupIterator++] = 0x80; //address low
+    tx_data[setupIterator++] = 0b00000011; //enable CLK_PER/2
+    tx_data[setupIterator++] = 0x3; //Measure Period
+
     //dummy
     tx_data[setupIterator++] = 0x00;
     tx_data[setupIterator++] = 0x00;
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_RESET);
     HAL_SPI_TransmitReceive(&hspi, (uint8_t *)tx_data, (uint8_t *)rx_data, setupIterator, 1000);
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_SET);
-    printf(
-//"tx: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\r\n
-"rx: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\r\n", 
-        // tx_data[0], tx_data[1], tx_data[2], tx_data[3], tx_data[4], tx_data[5], tx_data[6], tx_data[7], tx_data[8], tx_data[9], tx_data[10], tx_data[11],
-        // tx_data[12], tx_data[13], tx_data[14], tx_data[15], tx_data[16], tx_data[17], tx_data[18], tx_data[19],
-        rx_data[0], rx_data[1], rx_data[2], rx_data[3], rx_data[4], rx_data[5], rx_data[6], rx_data[7], rx_data[8], rx_data[9], rx_data[10], rx_data[11],
-        rx_data[12], rx_data[13], rx_data[14], rx_data[15], rx_data[16], rx_data[17], rx_data[18], rx_data[19]);
+    printf("\r\nrx: ");
+    for(int i=2; i < setupIterator; i+=16)
+        printHexLine(&rx_data[i]);
 
     while (1)
     {
+        // HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_RESET);
+        // HAL_Delay(250);
+        // HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_SET);
+        // HAL_Delay(250);
         HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_RESET);
-        tx_data[0] = 0x64;
-        tx_data[1] = 0x1C;
-        tx_data[2] = 0;
+        tx_data[0] = 0x1F;
+        tx_data[1] = 0x34;
+        tx_data[2] = 0x00;
         tx_data[3] = 0;
         tx_data[4] = 0;
         tx_data[5] = 0;
-        tx_data[6] = 0x15;
-        tx_data[7] = 0x34;
-        tx_data[8] = 0x0b;
+        tx_data[6] = 0;
+        tx_data[7] = 0;
+        tx_data[8] = 0;
         tx_data[9] = 0;
         tx_data[10] = 0;
         tx_data[11] = 0;
@@ -123,12 +157,17 @@ int main(void)
         tx_data[29] = 0;
         tx_data[30] = 0;
         tx_data[31] = 0;
+        tx_data[32] = 0;
+        tx_data[33] = 0;
+        tx_data[34] = 0;
+        tx_data[35] = 0;
 
-        HAL_SPI_TransmitReceive(&hspi, (uint8_t *)tx_data, (uint8_t *)rx_data, 32, 1000);
+        HAL_SPI_TransmitReceive(&hspi, (uint8_t *)tx_data, (uint8_t *)rx_data, 36, 1000);
         HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_SET);
         printf("\r\nrx: ");
-        printHexLine(rx_data);
-        printHexLine(&rx_data[16]);
+        printHexLine(&rx_data[2]);
+        printHexLine(&rx_data[18]);
+        printf("%02x %02x %02x %02x", rx_data[32], rx_data[33], rx_data[34], rx_data[35]);
     }
 }
 
