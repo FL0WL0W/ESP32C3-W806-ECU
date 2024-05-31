@@ -1,4 +1,5 @@
 {
+    "workspaceKeybindings.ESP32-W806-ECU.enabled": true,
     "editor.tokenColorCustomizations": {
         "textMateRules": [
             {

@@ -202,6 +202,17 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
+    /* File must be bigger than 0 */
+    if (!(req->content_len > 0)) {
+        ESP_LOGE(TAG, "File too small : %d bytes", req->content_len);
+        /* Respond with 400 Bad Request */
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+                            "File size must be larger than 0!\r\n");
+        /* Return failure to close underlying connection else the
+         * incoming file content will keep the socket busy */
+        return ESP_FAIL;
+    }
+
     /* Content length of the request gives
      * the size of the file being uploaded */
     int remaining = req->content_len;
