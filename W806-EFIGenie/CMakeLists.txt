@@ -43,11 +43,11 @@ project(${TARGET} C CXX ASM)
 set(LIBRARIES	libs)
 
 include_directories(include)
-# include_directories(${CMAKE_BINARY_DIR}/_deps/embeddedioservices-src/HardwareAbstractions/W80x/include)
+include_directories(${CMAKE_BINARY_DIR}/_deps/embeddedioservices-src/HardwareAbstractions/W80x/include)
 
 file(GLOB_RECURSE USER_CSOURCES src/*.c)
 file(GLOB_RECURSE USER_CPPSOURCES src/*.cpp)
-# file(GLOB_RECURSE EmbeddedIOService_SOURCES ${CMAKE_BINARY_DIR}/_deps/embeddedioservices-src/HardwareAbstractions/W80x/src/*.cpp)
+file(GLOB_RECURSE EmbeddedIOService_SOURCES ${CMAKE_BINARY_DIR}/_deps/embeddedioservices-src/HardwareAbstractions/W80x/src/*.cpp)
 
 set(SRCS 
         ${USER_CSOURCES} 
@@ -58,7 +58,7 @@ add_executable(${TARGET}.elf ${SRCS})
 target_link_libraries(${TARGET}.elf w806_bsp)
 target_link_libraries(${TARGET}.elf w806_libc)
 target_link_libraries(${TARGET}.elf w806_drivers)
-# target_link_libraries(${TARGET}.elf EFIGenie)
+target_link_libraries(${TARGET}.elf EFIGenie)
 
 set(BIN_FILE ${CMAKE_BINARY_DIR}/${TARGET}.bin)
 add_custom_command(TARGET ${TARGET}.elf POST_BUILD
