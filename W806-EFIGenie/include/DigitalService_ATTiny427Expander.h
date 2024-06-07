@@ -24,7 +24,7 @@ namespace EmbeddedIOServices
 		DigitalInterrupt_ATTiny427Expander(GPIOPort_ATTiny427Expander gpioPort, GPIOPin_ATTiny427Expander gpioPin, callback_t callBack) : GPIOPort(gpioPort), GPIOPin(gpioPin), CallBack(callBack) { }
 	};
 
-	typedef std::forward_list<DigitalInterrupt_ATTiny427Expander> DigitalInterruptList_ATTiny427ExpanderPort;
+	typedef std::forward_list<DigitalInterrupt_ATTiny427Expander> DigitalInterruptList_ATTiny427Expander;
 
 	struct DigitalService_ATTiny427Expander_Registers 
 	{
@@ -61,7 +61,7 @@ namespace EmbeddedIOServices
 	class DigitalService_ATTiny427Expander : public IDigitalService
 	{
 	protected:
-		DigitalInterruptList_ATTiny427ExpanderPort InterruptList;
+		DigitalInterruptList_ATTiny427Expander InterruptList;
 
 		DigitalService_ATTiny427Expander_Registers _newRegisters;
 		DigitalService_ATTiny427Expander_Registers _previousRegisters;

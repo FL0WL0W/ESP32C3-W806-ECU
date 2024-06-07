@@ -175,6 +175,32 @@ namespace EmbeddedIOServices
 		inOutBuffer[bufferIndex++] = 0x06; //address
 		inOutBuffer[bufferIndex++] = 0x61; //read 1 byte from 8 bit address with 0 as high address byte
 		inOutBuffer[bufferIndex++] = 0x02; //address
+
+		_previousRegisters.PORTA_IN ^= _newRegisters.PORTA_IN;
+		_previousRegisters.PORTB_IN ^= _newRegisters.PORTB_IN;
+		_previousRegisters.PORTC_IN ^= _newRegisters.PORTC_IN;
+
+		for (DigitalInterruptList_ATTiny427Expander::iterator interrupt = InterruptList.begin(); interrupt != InterruptList.end(); ++interrupt)
+		{
+			const uint8_t GPIOPin = PinToGPIOPin(interrupt->GPIOPin);
+			switch(interrupt->GPIOPort)
+			{
+				case PORTA: 
+						if(_previousRegisters.PORTA_IN & GPIOPin)
+							interrupt->CallBack();
+					break;
+				case PORTB: 
+						if(_previousRegisters.PORTB_IN & GPIOPin)
+							interrupt->CallBack();
+					break;
+				case PORTC: 
+						if(_previousRegisters.PORTC_IN & GPIOPin)
+							interrupt->CallBack();
+					break;
+			}
+		}
+		
+		_previousRegisters = _newRegisters;
 		return bufferIndex;
 	}
 }
