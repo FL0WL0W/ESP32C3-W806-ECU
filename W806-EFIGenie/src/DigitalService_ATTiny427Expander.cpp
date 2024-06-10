@@ -8,84 +8,84 @@ namespace EmbeddedIOServices
     }
 	void DigitalService_ATTiny427Expander::InitPin(digitalpin_t pin, PinDirection direction)
 	{
-		const GPIOPort_ATTiny427Expander GPIOPort = PinToGPIOPort(pin);
-		const GPIOPin_ATTiny427Expander GPIOPin = PinToGPIOPin(pin);
-		switch(GPIOPort)
+		const DigitalPort_ATTiny427Expander DigitalPort = PinToDigitalPort(pin);
+		const DigitalPin_ATTiny427Expander DigitalPin = PinToDigitalPin(pin);
+		switch(DigitalPort)
 		{
 			case PORTA:
 				if(direction == In)
-					_newRegisters.PORTA_DIR &= ~GPIOPin;
+					_newRegisters.PORTA_DIR &= ~DigitalPin;
 				else
-					_newRegisters.PORTA_DIR |= GPIOPin;
+					_newRegisters.PORTA_DIR |= DigitalPin;
 				return;
 			case PORTB:
 				if(direction == In)
-					_newRegisters.PORTB_DIR &= ~GPIOPin;
+					_newRegisters.PORTB_DIR &= ~DigitalPin;
 				else
-					_newRegisters.PORTB_DIR |= GPIOPin;
+					_newRegisters.PORTB_DIR |= DigitalPin;
 				return;
 			case PORTC:
 				if(direction == In)
-					_newRegisters.PORTC_DIR &= ~GPIOPin;
+					_newRegisters.PORTC_DIR &= ~DigitalPin;
 				else
-					_newRegisters.PORTC_DIR |= GPIOPin;
+					_newRegisters.PORTC_DIR |= DigitalPin;
 				return;
 		}
 	}
 	bool DigitalService_ATTiny427Expander::ReadPin(digitalpin_t pin)
 	{
-		const GPIOPort_ATTiny427Expander GPIOPort = PinToGPIOPort(pin);
-		const GPIOPin_ATTiny427Expander GPIOPin = PinToGPIOPin(pin);
-		switch(GPIOPort)
+		const DigitalPort_ATTiny427Expander DigitalPort = PinToDigitalPort(pin);
+		const DigitalPin_ATTiny427Expander DigitalPin = PinToDigitalPin(pin);
+		switch(DigitalPort)
 		{
 			case PORTA:
-				return _newRegisters.PORTA_IN & GPIOPin;
+				return _newRegisters.PORTA_IN & DigitalPin;
 			case PORTB:
-				return _newRegisters.PORTB_IN & GPIOPin;
+				return _newRegisters.PORTB_IN & DigitalPin;
 			case PORTC:
-				return _newRegisters.PORTC_IN & GPIOPin;
+				return _newRegisters.PORTC_IN & DigitalPin;
 		}
 	}
 	void DigitalService_ATTiny427Expander::WritePin(digitalpin_t pin, bool value)
 	{
-		const GPIOPort_ATTiny427Expander GPIOPort = PinToGPIOPort(pin);
-		const GPIOPin_ATTiny427Expander GPIOPin = PinToGPIOPin(pin);
+		const DigitalPort_ATTiny427Expander DigitalPort = PinToDigitalPort(pin);
+		const DigitalPin_ATTiny427Expander DigitalPin = PinToDigitalPin(pin);
 		switch(pin>>3)
 		{
 			case PORTA:
 				if(value == false)
-					_newRegisters.PORTA_OUT &= ~GPIOPin;
+					_newRegisters.PORTA_OUT &= ~DigitalPin;
 				else
-					_newRegisters.PORTA_OUT |= GPIOPin;
+					_newRegisters.PORTA_OUT |= DigitalPin;
 				return;
 			case PORTB:
 				if(value == false)
-					_newRegisters.PORTB_OUT &= ~GPIOPin;
+					_newRegisters.PORTB_OUT &= ~DigitalPin;
 				else
-					_newRegisters.PORTB_OUT |= GPIOPin;
+					_newRegisters.PORTB_OUT |= DigitalPin;
 				return;
 			case PORTC:
 				if(value == false)
-					_newRegisters.PORTC_OUT &= ~GPIOPin;
+					_newRegisters.PORTC_OUT &= ~DigitalPin;
 				else
-					_newRegisters.PORTC_OUT |= GPIOPin;
+					_newRegisters.PORTC_OUT |= DigitalPin;
 				return;
 		}
 	}
 	void DigitalService_ATTiny427Expander::AttachInterrupt(digitalpin_t pin, callback_t callBack)
 	{
-		const GPIOPort_ATTiny427Expander GPIOPort = PinToGPIOPort(pin);
-		const GPIOPin_ATTiny427Expander GPIOPin = PinToGPIOPin(pin);
-		InterruptList.push_front(DigitalInterrupt_ATTiny427Expander(GPIOPort, GPIOPin, callBack));
+		const DigitalPort_ATTiny427Expander DigitalPort = PinToDigitalPort(pin);
+		const DigitalPin_ATTiny427Expander DigitalPin = PinToDigitalPin(pin);
+		InterruptList.push_front(DigitalInterrupt_ATTiny427Expander(DigitalPort, DigitalPin, callBack));
 
 	}
 	void DigitalService_ATTiny427Expander::DetachInterrupt(digitalpin_t pin)
 	{
-		const GPIOPort_ATTiny427Expander GPIOPort = PinToGPIOPort(pin);
-		const GPIOPin_ATTiny427Expander GPIOPin = PinToGPIOPin(pin);
-		InterruptList.remove_if([GPIOPort, GPIOPin](const DigitalInterrupt_ATTiny427Expander& interrupt) { return interrupt.GPIOPort == GPIOPort && interrupt.GPIOPin == GPIOPin; });
+		const DigitalPort_ATTiny427Expander DigitalPort = PinToDigitalPort(pin);
+		const DigitalPin_ATTiny427Expander DigitalPin = PinToDigitalPin(pin);
+		InterruptList.remove_if([DigitalPort, DigitalPin](const DigitalInterrupt_ATTiny427Expander& interrupt) { return interrupt.DigitalPort == DigitalPort && interrupt.DigitalPin == DigitalPin; });
 	}
-	size_t DigitalService_ATTiny427Expander::Update(uint8_t inOutBuffer[88])
+	size_t DigitalService_ATTiny427Expander::Update(uint8_t inOutBuffer[22])
 	{
 		uint8_t bufferIndex = 0;
 		if(!_operations.First) 
@@ -111,42 +111,42 @@ namespace EmbeddedIOServices
 			bufferIndex+=2;
 			_newRegisters.PORTA_IN = inOutBuffer[bufferIndex];
 		}
-		bufferIndex = 0;
+		DigitalService_ATTiny427Expander_Registers updateRegisters = _newRegisters;
 		_operations.First = false;
-		_operations.PORTC_OUT = _newRegisters.PORTC_OUT != _previousRegisters.PORTC_OUT;
-		_operations.PORTB_OUT = _newRegisters.PORTB_OUT != _previousRegisters.PORTB_OUT;
-		_operations.PORTA_OUT = _newRegisters.PORTA_OUT != _previousRegisters.PORTA_OUT;
-		_operations.PORTC_DIR = _newRegisters.PORTC_DIR != _previousRegisters.PORTC_DIR;
-		_operations.PORTB_DIR = _newRegisters.PORTB_DIR != _previousRegisters.PORTB_DIR;
-		_operations.PORTA_DIR = _newRegisters.PORTA_DIR != _previousRegisters.PORTA_DIR;
+		_operations.PORTC_OUT = updateRegisters.PORTC_OUT != _previousRegisters.PORTC_OUT;
+		_operations.PORTB_OUT = updateRegisters.PORTB_OUT != _previousRegisters.PORTB_OUT;
+		_operations.PORTA_OUT = updateRegisters.PORTA_OUT != _previousRegisters.PORTA_OUT;
+		_operations.PORTC_DIR = updateRegisters.PORTC_DIR != _previousRegisters.PORTC_DIR;
+		_operations.PORTB_DIR = updateRegisters.PORTB_DIR != _previousRegisters.PORTB_DIR;
+		_operations.PORTA_DIR = updateRegisters.PORTA_DIR != _previousRegisters.PORTA_DIR;
 		
-		
+		bufferIndex = 0;
 		if(_operations.PORTC_OUT)
 		{
 			inOutBuffer[bufferIndex++] = 0xE1; //write 1 byte to 8 bit address with 0 as high address byte
 			inOutBuffer[bufferIndex++] = 0x09; //address
-			inOutBuffer[bufferIndex++] = _newRegisters.PORTC_OUT; //OUT
+			inOutBuffer[bufferIndex++] = updateRegisters.PORTC_OUT; //OUT
 		}
 		if(_operations.PORTB_OUT)
 		{
 			inOutBuffer[bufferIndex++] = _operations.PORTC_DIR? 0xE3 : 0xE1; //write 1 or 3 bytes to 8 bit address with 0 as high address byte
 			inOutBuffer[bufferIndex++] = 0x05; //address
-			inOutBuffer[bufferIndex++] = _newRegisters.PORTB_OUT; //OUT
+			inOutBuffer[bufferIndex++] = updateRegisters.PORTB_OUT; //OUT
 			if(_operations.PORTC_DIR)
 			{
 				inOutBuffer[bufferIndex++] = 0; //INTFlags. writing 0 to this does nothing
-				inOutBuffer[bufferIndex++] = _newRegisters.PORTC_DIR; //DIR
+				inOutBuffer[bufferIndex++] = updateRegisters.PORTC_DIR; //DIR
 			}
 		}
 		if(_operations.PORTA_OUT)
 		{
 			inOutBuffer[bufferIndex++] = _operations.PORTB_DIR? 0xE3 : 0xE1; //write 1 or 3 bytes to 8 bit address with 0 as high address byte
 			inOutBuffer[bufferIndex++] = 0x01; //address
-			inOutBuffer[bufferIndex++] = _newRegisters.PORTA_OUT; //OUT
+			inOutBuffer[bufferIndex++] = updateRegisters.PORTA_OUT; //OUT
 			if(_operations.PORTB_DIR)
 			{
 				inOutBuffer[bufferIndex++] = 0; //INTFlags. writing 0 to this does nothing
-				inOutBuffer[bufferIndex++] = _newRegisters.PORTB_DIR; //DIR
+				inOutBuffer[bufferIndex++] = updateRegisters.PORTB_DIR; //DIR
 			}
 		}
 
@@ -154,20 +154,20 @@ namespace EmbeddedIOServices
 		{
 			inOutBuffer[bufferIndex++] = 0xE1; //write 1 byte to 8 bit address with 0 as high address byte
 			inOutBuffer[bufferIndex++] = 0x08; //address
-			inOutBuffer[bufferIndex++] = _newRegisters.PORTC_DIR; //DIR
+			inOutBuffer[bufferIndex++] = updateRegisters.PORTC_DIR; //DIR
 
 		}
 		if(_operations.PORTB_DIR && !_operations.PORTA_OUT)
 		{
 			inOutBuffer[bufferIndex++] = 0xE1; //write 1 byte to 8 bit address with 0 as high address byte
 			inOutBuffer[bufferIndex++] = 0x04; //address
-			inOutBuffer[bufferIndex++] = _newRegisters.PORTB_DIR; //DIR
+			inOutBuffer[bufferIndex++] = updateRegisters.PORTB_DIR; //DIR
 		}
 		if(_operations.PORTA_DIR)
 		{
 			inOutBuffer[bufferIndex++] = 0xE1; //write 1 byte to 8 bit address with 0 as high address byte
 			inOutBuffer[bufferIndex++] = 0x00; //address
-			inOutBuffer[bufferIndex++] = _newRegisters.PORTA_DIR; //DIR
+			inOutBuffer[bufferIndex++] = updateRegisters.PORTA_DIR; //DIR
 		}
 		inOutBuffer[bufferIndex++] = 0x61; //read 1 byte from 8 bit address with 0 as high address byte
 		inOutBuffer[bufferIndex++] = 0x0A; //address
@@ -176,31 +176,31 @@ namespace EmbeddedIOServices
 		inOutBuffer[bufferIndex++] = 0x61; //read 1 byte from 8 bit address with 0 as high address byte
 		inOutBuffer[bufferIndex++] = 0x02; //address
 
-		_previousRegisters.PORTA_IN ^= _newRegisters.PORTA_IN;
-		_previousRegisters.PORTB_IN ^= _newRegisters.PORTB_IN;
-		_previousRegisters.PORTC_IN ^= _newRegisters.PORTC_IN;
+		_previousRegisters.PORTA_IN ^= updateRegisters.PORTA_IN;
+		_previousRegisters.PORTB_IN ^= updateRegisters.PORTB_IN;
+		_previousRegisters.PORTC_IN ^= updateRegisters.PORTC_IN;
 
 		for (DigitalInterruptList_ATTiny427Expander::iterator interrupt = InterruptList.begin(); interrupt != InterruptList.end(); ++interrupt)
 		{
-			const uint8_t GPIOPin = PinToGPIOPin(interrupt->GPIOPin);
-			switch(interrupt->GPIOPort)
+			const uint8_t DigitalPin = PinToDigitalPin(interrupt->DigitalPin);
+			switch(interrupt->DigitalPort)
 			{
 				case PORTA: 
-						if(_previousRegisters.PORTA_IN & GPIOPin)
+						if(_previousRegisters.PORTA_IN & DigitalPin)
 							interrupt->CallBack();
 					break;
 				case PORTB: 
-						if(_previousRegisters.PORTB_IN & GPIOPin)
+						if(_previousRegisters.PORTB_IN & DigitalPin)
 							interrupt->CallBack();
 					break;
 				case PORTC: 
-						if(_previousRegisters.PORTC_IN & GPIOPin)
+						if(_previousRegisters.PORTC_IN & DigitalPin)
 							interrupt->CallBack();
 					break;
 			}
 		}
-		
-		_previousRegisters = _newRegisters;
+
+		_previousRegisters = updateRegisters;
 		return bufferIndex;
 	}
 }

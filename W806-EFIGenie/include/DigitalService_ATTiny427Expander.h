@@ -1,27 +1,26 @@
 #include "IDigitalService.h"
-#include "wm_regs.h"
 #include <forward_list>
 
 #ifndef DIGITALSERVICE_ATTINY427EXPANDER_H
 #define DIGITALSERVICE_ATTINY427EXPANDER_H
 namespace EmbeddedIOServices
 {
-	enum GPIOPort_ATTiny427Expander : uint8_t
+	enum DigitalPort_ATTiny427Expander : uint8_t
 	{
 		PORTA = 0,
 		PORTB = 1,
 		PORTC = 2
 	};
 
-	typedef uint8_t GPIOPin_ATTiny427Expander;
+	typedef uint8_t DigitalPin_ATTiny427Expander;
 	
 	struct DigitalInterrupt_ATTiny427Expander
 	{
-		GPIOPort_ATTiny427Expander GPIOPort;
-		GPIOPin_ATTiny427Expander GPIOPin;
+		DigitalPort_ATTiny427Expander DigitalPort;
+		DigitalPin_ATTiny427Expander DigitalPin;
 		callback_t CallBack;
 
-		DigitalInterrupt_ATTiny427Expander(GPIOPort_ATTiny427Expander gpioPort, GPIOPin_ATTiny427Expander gpioPin, callback_t callBack) : GPIOPort(gpioPort), GPIOPin(gpioPin), CallBack(callBack) { }
+		DigitalInterrupt_ATTiny427Expander(DigitalPort_ATTiny427Expander digitalPort, DigitalPin_ATTiny427Expander digitalPin, callback_t callBack) : DigitalPort(digitalPort), DigitalPin(digitalPin), CallBack(callBack) { }
 	};
 
 	typedef std::forward_list<DigitalInterrupt_ATTiny427Expander> DigitalInterruptList_ATTiny427Expander;
@@ -75,15 +74,15 @@ namespace EmbeddedIOServices
 		void AttachInterrupt(digitalpin_t pin, callback_t callBack);
 		void DetachInterrupt(digitalpin_t pin);
 		void ConfigurePassthrough(digitalpin_t pinIn, digitalpin_t pinOut);
-		size_t Update(uint8_t inOutBuffer[88]);
+		size_t Update(uint8_t inOutBuffer[22]);
 
-		static inline GPIOPin_ATTiny427Expander PinToGPIOPin(digitalpin_t pin)
+		static inline DigitalPin_ATTiny427Expander PinToDigitalPin(digitalpin_t pin)
 		{
 			return 1 << (pin % 8);
 		}
-		static inline GPIOPort_ATTiny427Expander PinToGPIOPort(digitalpin_t pin)
+		static inline DigitalPort_ATTiny427Expander PinToDigitalPort(digitalpin_t pin)
 		{
-			return static_cast<GPIOPort_ATTiny427Expander>(pin>>3);
+			return static_cast<DigitalPort_ATTiny427Expander>(pin>>3);
 		}
 	};
 }
