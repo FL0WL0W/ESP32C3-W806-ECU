@@ -60,20 +60,20 @@ namespace EmbeddedIOServices
 	class DigitalService_ATTiny427Expander : public IDigitalService
 	{
 	protected:
+		const bool _altSPI = false;
 		DigitalInterruptList_ATTiny427Expander InterruptList;
 
 		DigitalService_ATTiny427Expander_Registers _newRegisters;
 		DigitalService_ATTiny427Expander_Registers _previousRegisters;
 		DigitalService_ATTiny427Expander_Operations _operations;
 	public:
-		DigitalService_ATTiny427Expander();
-		~DigitalService_ATTiny427Expander();
+		DigitalService_ATTiny427Expander(const bool altSPI);
 		void InitPin(digitalpin_t pin, PinDirection direction);
 		bool ReadPin(digitalpin_t pin);
 		void WritePin(digitalpin_t pin, bool value);
 		void AttachInterrupt(digitalpin_t pin, callback_t callBack);
 		void DetachInterrupt(digitalpin_t pin);
-		void ConfigurePassthrough(digitalpin_t pinIn, digitalpin_t pinOut);
+		void ConfigurePassthrough(digitalpin_t pinIn, digitalpin_t pinOut, bool inverted);
 		size_t Update(uint8_t inOutBuffer[22]);
 
 		static inline DigitalPin_ATTiny427Expander PinToDigitalPin(digitalpin_t pin)

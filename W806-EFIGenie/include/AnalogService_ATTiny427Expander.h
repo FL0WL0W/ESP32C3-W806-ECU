@@ -31,15 +31,17 @@ namespace EmbeddedIOServices
 	class AnalogService_ATTiny427Expander : public IAnalogService
 	{
 	protected:
-		uint16_t _value[16];
+		const bool _altSPI = false;
+		uint16_t _value[11];
 
 		AnalogService_ATTiny427Expander_Registers _newRegisters;
 		AnalogService_ATTiny427Expander_Registers _previousRegisters;
 		AnalogService_ATTiny427Expander_Operations _operations;
 	public:
+		AnalogService_ATTiny427Expander(const bool altSPI);
 		void InitPin(analogpin_t pin);
 		float ReadPin(analogpin_t pin);
-		size_t Update(uint8_t inOutBuffer[30]);
+		size_t Update(uint8_t inOutBuffer[43]);
 
 		static inline AnalogChannel_ATTiny427Expander PinToAnalogChannel(analogpin_t pin)
 		{

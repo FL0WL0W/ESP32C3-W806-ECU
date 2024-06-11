@@ -65,58 +65,58 @@ namespace EmbeddedIOServices
             case 17:
 				_digitalService_W80x->InitPin(54, direction);
 				if((In17 = direction == In))
-					_digitalService_U2->ConfigurePassthrough(17, 20);
+					_digitalService_U2->ConfigurePassthrough(17, 20, false);
 				else
-					_digitalService_U2->ConfigurePassthrough(20, 17);
+					_digitalService_U2->ConfigurePassthrough(20, 17, true);
 				break;
             case 18:
 				_digitalService_W80x->InitPin(53, direction);
 				if((In18 = direction == In))
-					_digitalService_U2->ConfigurePassthrough(18, 15);
+					_digitalService_U2->ConfigurePassthrough(18, 15, false);
 				else
-					_digitalService_U2->ConfigurePassthrough(15, 18);
+					_digitalService_U2->ConfigurePassthrough(15, 18, true);
 				break;
             case 19:
 				_digitalService_W80x->InitPin(50, direction);
 				if((In19 = direction == In))
-					_digitalService_U2->ConfigurePassthrough(5, 14);
+					_digitalService_U2->ConfigurePassthrough(5, 14, false);
 				else
-					_digitalService_U2->ConfigurePassthrough(14, 5);
+					_digitalService_U2->ConfigurePassthrough(14, 5, false);
 				break;
             case 20:
 				_digitalService_W80x->InitPin(55, direction);
 				if((In20 = direction == In))
-					_digitalService_U2->ConfigurePassthrough(7, 12);
+					_digitalService_U2->ConfigurePassthrough(7, 12, false);
 				else
-					_digitalService_U2->ConfigurePassthrough(12, 7);
+					_digitalService_U2->ConfigurePassthrough(12, 7, true);
 				break;
             case 21:
 				_digitalService_W80x->InitPin(40, direction);
 				if((In21 = direction == In))
-					_digitalService_U1->ConfigurePassthrough(17, 20);
+					_digitalService_U1->ConfigurePassthrough(17, 20, false);
 				else
-					_digitalService_U1->ConfigurePassthrough(20, 17);
+					_digitalService_U1->ConfigurePassthrough(20, 17, true);
 				break;
             case 22:
 				_digitalService_W80x->InitPin(43, direction);
 				if((In22 = direction == In))
-					_digitalService_U1->ConfigurePassthrough(18, 15);
+					_digitalService_U1->ConfigurePassthrough(18, 15, false);
 				else
-					_digitalService_U1->ConfigurePassthrough(15, 18);
+					_digitalService_U1->ConfigurePassthrough(15, 18, true);
 				break;
             case 23:
 				_digitalService_W80x->InitPin(59, direction);
 				if((In23 = direction == In))
-					_digitalService_U1->ConfigurePassthrough(5, 14);
+					_digitalService_U1->ConfigurePassthrough(5, 14, false);
 				else
-					_digitalService_U1->ConfigurePassthrough(14, 5);
+					_digitalService_U1->ConfigurePassthrough(14, 5, false);
 				break;
             case 24:
 				_digitalService_W80x->InitPin(41, direction);
 				if((In24 = direction == In))
-					_digitalService_U1->ConfigurePassthrough(7, 12);
+					_digitalService_U1->ConfigurePassthrough(7, 12, false);
 				else
-					_digitalService_U1->ConfigurePassthrough(12,7);
+					_digitalService_U1->ConfigurePassthrough(12, 7, true);
 				break;
             case 25:
 				if(direction == Out)
@@ -301,21 +301,21 @@ namespace EmbeddedIOServices
             case 12:
 				return _digitalService_W80x->WritePin(36, value);
             case 17:
-				return _digitalService_W80x->WritePin(54, value);
+				return _digitalService_W80x->WritePin(54, !value);
             case 18:
-				return _digitalService_W80x->WritePin(53, value);
+				return _digitalService_W80x->WritePin(53, !value);
             case 19:
 				return _digitalService_W80x->WritePin(50, value);
             case 20:
-				return _digitalService_W80x->WritePin(55, value);
+				return _digitalService_W80x->WritePin(55, !value);
             case 21:
-				return _digitalService_W80x->WritePin(40, value);
+				return _digitalService_W80x->WritePin(40, !value);
             case 22:
-				return _digitalService_W80x->WritePin(43, value);
+				return _digitalService_W80x->WritePin(43, !value);
             case 23:
 				return _digitalService_W80x->WritePin(59, value);
             case 24:
-				return _digitalService_W80x->WritePin(41, value);
+				return _digitalService_W80x->WritePin(41, !value);
             case 25:
 				return _digitalService_U2->WritePin(21, value);
             case 26:

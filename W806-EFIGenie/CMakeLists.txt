@@ -1,6 +1,6 @@
 ﻿cmake_minimum_required ( VERSION 3.9 )
-Set(FETCHCONTENT_QUIET FALSE)
 include(FetchContent)
+Set(FETCHCONTENT_QUIET FALSE)
 
 #Fetch wm-sdk-w806
 FetchContent_Declare(

@@ -3,7 +3,7 @@
 #ifdef DIGITALSERVICE_ATTINY427EXPANDER_H
 namespace EmbeddedIOServices
 {
-    DigitalService_ATTiny427Expander::DigitalService_ATTiny427Expander()
+    DigitalService_ATTiny427Expander::DigitalService_ATTiny427Expander(bool altSPI) : _altSPI(altSPI)
     {
     }
 	void DigitalService_ATTiny427Expander::InitPin(digitalpin_t pin, PinDirection direction)
@@ -84,6 +84,39 @@ namespace EmbeddedIOServices
 		const DigitalPort_ATTiny427Expander DigitalPort = PinToDigitalPort(pin);
 		const DigitalPin_ATTiny427Expander DigitalPin = PinToDigitalPin(pin);
 		InterruptList.remove_if([DigitalPort, DigitalPin](const DigitalInterrupt_ATTiny427Expander& interrupt) { return interrupt.DigitalPort == DigitalPort && interrupt.DigitalPin == DigitalPin; });
+	}
+	void DigitalService_ATTiny427Expander::ConfigurePassthrough(digitalpin_t pinIn, digitalpin_t pinOut, bool inverted)
+	{
+		switch(pinOut)
+		{
+			case 2:
+				//EVOUTA
+				break;
+			case 4:
+				//LUT0OUT
+				break;
+			case 5:
+				//ACOUT
+				break;
+			case 7:
+				break;
+			case 10:
+				break;
+			case 11:
+				break;
+			case 12:
+				break;
+			case 14:
+				break;
+			case 15:
+				break;
+			case 17:
+				break;
+			case 18:
+				break;
+			case 20:
+				break;
+		}
 	}
 	size_t DigitalService_ATTiny427Expander::Update(uint8_t inOutBuffer[22])
 	{
