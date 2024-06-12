@@ -1,4 +1,5 @@
 #include "IAnalogService.h"
+#include "ATTiny427ExpanderUpdateService.h"
 #include "stddef.h"
 
 #ifndef ANALOGSERVICE_ATTINY427EXPANDER_H
@@ -31,17 +32,11 @@ namespace EmbeddedIOServices
 	class AnalogService_ATTiny427Expander : public IAnalogService
 	{
 	protected:
-		const bool _altSPI = false;
-		uint16_t _value[11];
-
-		AnalogService_ATTiny427Expander_Registers _newRegisters;
-		AnalogService_ATTiny427Expander_Registers _previousRegisters;
-		AnalogService_ATTiny427Expander_Operations _operations;
+		ATTiny427Expander_Registers *_registers;
 	public:
-		AnalogService_ATTiny427Expander(const bool altSPI);
+		AnalogService_ATTiny427Expander(ATTiny427Expander_Registers *registers);
 		void InitPin(analogpin_t pin);
 		float ReadPin(analogpin_t pin);
-		size_t Update(uint8_t inOutBuffer[43]);
 
 		static inline AnalogChannel_ATTiny427Expander PinToAnalogChannel(analogpin_t pin)
 		{
