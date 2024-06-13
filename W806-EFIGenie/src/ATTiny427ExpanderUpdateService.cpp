@@ -163,12 +163,12 @@ namespace EmbeddedIOServices
             updateRegisters.PORTA_DIR |= 0b00000100;
             updateRegisters.PORTA_DIR &= 0b11100000;
         }
-		_operations.PORTC_OUT = updateRegisters.PORTC_OUT != _previousRegisters.PORTC_OUT;
-		_operations.PORTB_OUT = updateRegisters.PORTB_OUT != _previousRegisters.PORTB_OUT;
-		_operations.PORTA_OUT = updateRegisters.PORTA_OUT != _previousRegisters.PORTA_OUT;
-		_operations.PORTC_DIR = updateRegisters.PORTC_DIR != _previousRegisters.PORTC_DIR;
-		_operations.PORTB_DIR = updateRegisters.PORTB_DIR != _previousRegisters.PORTB_DIR;
-		_operations.PORTA_DIR = updateRegisters.PORTA_DIR != _previousRegisters.PORTA_DIR;
+		_operations.PORTC_OUT = updateRegisters.PORTC_OUT != _previousRegisters.PORTC_OUT || _operations.First;
+		_operations.PORTB_OUT = updateRegisters.PORTB_OUT != _previousRegisters.PORTB_OUT || _operations.First;
+		_operations.PORTA_OUT = updateRegisters.PORTA_OUT != _previousRegisters.PORTA_OUT || _operations.First;
+		_operations.PORTC_DIR = updateRegisters.PORTC_DIR != _previousRegisters.PORTC_DIR || _operations.First;
+		_operations.PORTB_DIR = updateRegisters.PORTB_DIR != _previousRegisters.PORTB_DIR || _operations.First;
+		_operations.PORTA_DIR = updateRegisters.PORTA_DIR != _previousRegisters.PORTA_DIR || _operations.First;
 		
 		if(_operations.PORTC_OUT)
 		{
@@ -236,10 +236,10 @@ namespace EmbeddedIOServices
             updateRegisters.AnalogEnable0 &= 0xE0;
         }
         _operations.AnalogRead = (_previousRegisters.AnalogEnable1 << 8) | _previousRegisters.AnalogEnable0;
-        _operations.AnalogStop = (updateRegisters.AnalogEnable0 == 0 || updateRegisters.AnalogEnable1 == 0) && _operations.AnalogRunning;
-        _operations.GPIOR0 = updateRegisters.GPIOR0 != _previousRegisters.GPIOR0;
-        _operations.GPIOR1 = updateRegisters.GPIOR1 != _previousRegisters.GPIOR1;
-        _operations.GPIOR2 = updateRegisters.GPIOR2 != _previousRegisters.GPIOR2;
+        _operations.AnalogStop = ((updateRegisters.AnalogEnable0 == 0 || updateRegisters.AnalogEnable1 == 0) && _operations.AnalogRunning) || _operations.First;
+        _operations.GPIOR0 = updateRegisters.GPIOR0 != _previousRegisters.GPIOR0 || _operations.First;
+        _operations.GPIOR1 = updateRegisters.GPIOR1 != _previousRegisters.GPIOR1 || _operations.First;
+        _operations.GPIOR2 = updateRegisters.GPIOR2 != _previousRegisters.GPIOR2 || _operations.First;
         _operations.AnalogStart = updateRegisters.AnalogEnable0 != 0 && updateRegisters.AnalogEnable1 != 0 && !_operations.AnalogRunning;
         
         if(_operations.AnalogRead != 0)
@@ -335,6 +335,54 @@ namespace EmbeddedIOServices
             inOutBuffer[bufferIndex++] = 0x00; //co accumulation. accumulation done in software so the readings are evenly spaced
             inOutBuffer[bufferIndex++] = 0x11; //single 12 bit mode and start
             _operations.AnalogRunning = true;
+        }
+
+        //AC
+        _operations.AC_CTRLA = updateRegisters.AC_CTRLA != _previousRegisters.AC_CTRLA || _operations.First;
+        _operations.AC_MUXCTRLA = updateRegisters.AC_MUXCTRLA != _previousRegisters.AC_MUXCTRLA || _operations.First;
+        _operations.AC_DACREF = updateRegisters.AC_DACREF != _previousRegisters.AC_DACREF || _operations.First;
+
+        if(_operations.AC_CTRLA)
+        {
+            inOutBuffer[bufferIndex++] = 0x81 + (_operations.AC_MUXCTRLA && _operations.AC_DACREF? 4 : (_operations.AC_MUXCTRLA? 2 : 0)); //write 16bit address
+            inOutBuffer[bufferIndex++] = 0x06; //address high
+            inOutBuffer[bufferIndex++] = 0x80; //address low
+            inOutBuffer[bufferIndex++] = updateRegisters.AC_CTRLA; //CTRLA
+            if(_operations.AC_MUXCTRLA)
+            {
+                inOutBuffer[bufferIndex++] = 0; //nothing byte
+                inOutBuffer[bufferIndex++] = updateRegisters.AC_MUXCTRLA; //MUXCTRLA
+                if(_operations.AC_DACREF)
+                {
+                    inOutBuffer[bufferIndex++] = 0; //nothing byte
+                    inOutBuffer[bufferIndex++] = updateRegisters.AC_DACREF; //DACREF
+                }
+            }
+            else if(_operations.AC_DACREF)
+            {
+                inOutBuffer[bufferIndex++] = 0xC1; //write 1 byte to 8 bit address using existing high byte
+                inOutBuffer[bufferIndex++] = 0x82; //low byte
+                inOutBuffer[bufferIndex++] = updateRegisters.AC_DACREF; //DACREF
+            }
+        }
+        else if(_operations.AC_MUXCTRLA)
+        {
+            inOutBuffer[bufferIndex++] = 0x81 + (_operations.AC_DACREF? 2 : 0); //write 16bit address
+            inOutBuffer[bufferIndex++] = 0x06; //address high
+            inOutBuffer[bufferIndex++] = 0x82; //address low
+            inOutBuffer[bufferIndex++] = updateRegisters.AC_MUXCTRLA; //MUXCTRLA
+            if(_operations.AC_DACREF)
+            {
+                inOutBuffer[bufferIndex++] = 0; //nothing byte
+                inOutBuffer[bufferIndex++] = updateRegisters.AC_DACREF; //DACREF
+            }
+        }
+        else if(_operations.AC_DACREF)
+        {
+            inOutBuffer[bufferIndex++] = 0x81; //write 16bit address
+            inOutBuffer[bufferIndex++] = 0x06; //address high
+            inOutBuffer[bufferIndex++] = 0x84; //address low
+            inOutBuffer[bufferIndex++] = updateRegisters.AC_DACREF; //DACREF
         }
 
 		_operations.First = false;

@@ -42,6 +42,24 @@ namespace EmbeddedIOServices
 			};
 			
 		};
+		uint8_t AC_CTRLA = 0;
+		uint8_t AC_MUXCTRLA = 0;
+		uint8_t AC_DACREF = 0xFF;
+		uint8_t EVSYS_CHANNEL0 = 0;
+		uint8_t EVSYS_CHANNEL1 = 0;
+		uint8_t EVSYS_CHANNEL2 = 0;
+		uint8_t EVSYS_CHANNEL3 = 0;
+		uint8_t EVSYS_CHANNEL4 = 0;
+		uint8_t EVSYS_CHANNEL5 = 0;
+		uint8_t EVSYS_CCL_LUT0A = 0;
+		uint8_t EVSYS_CCL_LUT1A = 0;
+		uint8_t EVSYS_CCL_LUT2A = 0;
+		uint8_t EVSYS_CCL_LUT3A = 0;
+		uint8_t EVSYS_EVOUTA = 0;
+		uint8_t EVSYS_EVOUTB = 0;
+		uint8_t EVSYS_EVOUTC = 0;
+		uint8_t EVSYS_TCB0_CAPT = 0;
+		uint8_t EVSYS_TCB1_CAPT = 0;
 
 		//SRAM
 		uint8_t AnalogCounter = 0;
@@ -113,6 +131,9 @@ namespace EmbeddedIOServices
 		bool GPIOR1 : 1;
 		bool GPIOR2 : 1;
 		bool AnalogStart : 1;
+		bool AC_CTRLA : 1;
+		bool AC_MUXCTRLA : 1;
+		bool AC_DACREF : 1;
 
 		ATTiny427Expander_Operations()
 		{
