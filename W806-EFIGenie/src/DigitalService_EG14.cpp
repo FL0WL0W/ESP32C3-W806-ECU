@@ -65,58 +65,58 @@ namespace EmbeddedIOServices
             case 17:
 				_digitalService_W80x->InitPin(54, direction);
 				if((In17 = direction == In))
-					_digitalService_U2->ConfigurePassthrough(17, 20, false);
+					_digitalService_U2->InitPassthrough(17, 20, false);
 				else
-					_digitalService_U2->ConfigurePassthrough(20, 17, true);
+					_digitalService_U2->InitPassthrough(20, 17, true);
 				break;
             case 18:
 				_digitalService_W80x->InitPin(53, direction);
 				if((In18 = direction == In))
-					_digitalService_U2->ConfigurePassthrough(18, 15, false);
+					_digitalService_U2->InitPassthrough(18, 15, false);
 				else
-					_digitalService_U2->ConfigurePassthrough(15, 18, true);
+					_digitalService_U2->InitPassthrough(15, 18, true);
 				break;
             case 19:
 				_digitalService_W80x->InitPin(50, direction);
 				if((In19 = direction == In))
-					_digitalService_U2->ConfigurePassthrough(5, 14, false);
+					_digitalService_U2->InitPassthrough(5, 14, false);
 				else
-					_digitalService_U2->ConfigurePassthrough(14, 5, false);
+					_digitalService_U2->InitPassthrough(14, 5, false);
 				break;
             case 20:
 				_digitalService_W80x->InitPin(55, direction);
 				if((In20 = direction == In))
-					_digitalService_U2->ConfigurePassthrough(7, 12, false);
+					_digitalService_U2->InitPassthrough(7, 12, false);
 				else
-					_digitalService_U2->ConfigurePassthrough(12, 7, true);
+					_digitalService_U2->InitPassthrough(12, 7, true);
 				break;
             case 21:
 				_digitalService_W80x->InitPin(40, direction);
 				if((In21 = direction == In))
-					_digitalService_U1->ConfigurePassthrough(17, 20, false);
+					_digitalService_U1->InitPassthrough(17, 20, false);
 				else
-					_digitalService_U1->ConfigurePassthrough(20, 17, true);
+					_digitalService_U1->InitPassthrough(20, 17, true);
 				break;
             case 22:
 				_digitalService_W80x->InitPin(43, direction);
 				if((In22 = direction == In))
-					_digitalService_U1->ConfigurePassthrough(18, 15, false);
+					_digitalService_U1->InitPassthrough(18, 15, false);
 				else
-					_digitalService_U1->ConfigurePassthrough(15, 18, true);
+					_digitalService_U1->InitPassthrough(15, 18, true);
 				break;
             case 23:
 				_digitalService_W80x->InitPin(59, direction);
 				if((In23 = direction == In))
-					_digitalService_U1->ConfigurePassthrough(5, 14, false);
+					_digitalService_U1->InitPassthrough(5, 14, false);
 				else
-					_digitalService_U1->ConfigurePassthrough(14, 5, false);
+					_digitalService_U1->InitPassthrough(14, 5, false);
 				break;
             case 24:
 				_digitalService_W80x->InitPin(41, direction);
 				if((In24 = direction == In))
-					_digitalService_U1->ConfigurePassthrough(7, 12, false);
+					_digitalService_U1->InitPassthrough(7, 12, false);
 				else
-					_digitalService_U1->ConfigurePassthrough(12, 7, true);
+					_digitalService_U1->InitPassthrough(12, 7, true);
 				break;
             case 25:
 				if(direction == Out)

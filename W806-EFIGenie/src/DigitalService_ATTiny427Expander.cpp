@@ -85,7 +85,7 @@ namespace EmbeddedIOServices
 		const DigitalPin_ATTiny427Expander DigitalPin = PinToDigitalPin(pin);
 		_interruptList.remove_if([DigitalPort, DigitalPin](const DigitalInterrupt_ATTiny427Expander& interrupt) { return interrupt.DigitalPort == DigitalPort && interrupt.DigitalPin == DigitalPin; });
 	}
-	bool DigitalService_ATTiny427Expander::ConfigurePassthrough(digitalpin_t pinIn, digitalpin_t pinOut, bool inverted)
+	bool DigitalService_ATTiny427Expander::InitPassthrough(digitalpin_t pinIn, digitalpin_t pinOut, bool inverted)
 	{
 		switch(pinOut)
 		{
@@ -97,14 +97,32 @@ namespace EmbeddedIOServices
 				break;
 			case 5:
 			{
-				//primarily use ACOUT
-				if(pinIn == 7 || pinIn == 14 || pinIn == 13 || pinIn == 9)
+				DeinitPassthrough(pinIn);
+				//primarily use ACOUT since it does not have any alternates and doesn't use any EventChannels
+				if(pinIn == 7 || pinIn == 13 || pinIn == 9 || pinIn == 14)
 				{
-
+					_registers->AC_DACREF = 0x85;
+					_registers->AC_MUXCTRLA = (inverted? 0b10000000 : 0) | 0x3;
+					switch(pinIn)
+					{
+						case 13:
+							_registers->AC_MUXCTRLA |= 0x1 << 3;;
+							break;
+						case 9:
+							_registers->AC_MUXCTRLA |= 0x2 << 3;
+							break;
+						case 14:
+							_registers->AC_MUXCTRLA |= 0x3 << 3;
+							break;
+					}
+					_registers->AC_CTRLA = 0b01000111; //enable with large hysteresis and output
 				}
 				//otherwise use LUT3ALT, if LUT3 was already being used, it will be overwritten
 				else
 				{
+					//disable AC if it is enabled
+					_registers->AC_CTRLA = 0;
+
 					//check if matching a LUT3 input pin
 					if(pinIn > 15 && pinIn < 19)
 					{
@@ -138,6 +156,40 @@ namespace EmbeddedIOServices
 				break;
 		}
 		return false;
+	}
+	void DigitalService_ATTiny427Expander::DeinitPassthrough(digitalpin_t pinOut)
+	{
+		switch(pinOut)
+		{
+			case 2:
+				//EVOUTA
+				break;
+			case 4:
+				//LUT0OUT
+				break;
+			case 5:
+				//disable AC if it is enabled
+				_registers->AC_CTRLA = 0;
+				break;
+			case 7:
+				break;
+			case 10:
+				break;
+			case 11:
+				break;
+			case 12:
+				break;
+			case 14:
+				break;
+			case 15:
+				break;
+			case 17:
+				break;
+			case 18:
+				break;
+			case 20:
+				break;
+		}
 	}
 	void DigitalService_ATTiny427Expander::Update()
 	{
