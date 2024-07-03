@@ -8,11 +8,9 @@
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/W806-Debug",
             "cacheVariables": {
-                "CMAKE_AR": "csky-abiv2-elf-ar",
                 "CMAKE_C_COMPILER": "csky-abiv2-elf-gcc",
                 "CMAKE_ASM_COMPILER": "csky-abiv2-elf-gcc",
                 "CMAKE_CXX_COMPILER": "csky-abiv2-elf-g++",
-                "CMAKE_OBJCOPY": "csky-abiv2-elf-objcopy",
                 "CMAKE_C_FLAGS": "-Wall -DTLS_CONFIG_CPU_XT804=1 -DGCC_COMPILE=1 -mcpu=ck804ef -std=gnu99 -mhard-float -fdata-sections -ffunction-sections",
                 "CMAKE_CXX_FLAGS": "-Wall -DTLS_CONFIG_CPU_XT804=1 -DGCC_COMPILE=1 -mcpu=ck804ef -std=gnu++11 -mhard-float -fdata-sections -ffunction-sections",
                 "CMAKE_ASM_FLAGS": "-Wall -DTLS_CONFIG_CPU_XT804=1 -DGCC_COMPILE=1 -mcpu=ck804ef -std=gnu99 -mhard-float -Wa,--gdwarf2 -fdata-sections -ffunction-sections",

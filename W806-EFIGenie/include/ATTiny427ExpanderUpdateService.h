@@ -42,6 +42,8 @@ namespace EmbeddedIOServices
 			};
 			
 		};
+		uint8_t PORTMUX_EVSYSROUTEA = 0;
+		uint8_t PORTMUX_CCLROUTEA = 0;
 		uint8_t AC_CTRLA = 0;
 		uint8_t AC_MUXCTRLA = 0;
 		uint8_t AC_DACREF = 0xFF;
@@ -60,6 +62,24 @@ namespace EmbeddedIOServices
 		uint8_t EVSYS_EVOUTC = 0;
 		uint8_t EVSYS_TCB0_CAPT = 0;
 		uint8_t EVSYS_TCB1_CAPT = 0;
+
+		uint8_t CCL_CTRLA = 0;
+		uint8_t CCL_LUT0CTRLA = 0;
+		uint8_t CCL_LUT0CTRLB = 0;
+		uint8_t CCL_LUT0CTRLC = 0;
+		uint8_t CCL_LUT0TRUTH = 0;
+		uint8_t CCL_LUT1CTRLA = 0;
+		uint8_t CCL_LUT1CTRLB = 0;
+		uint8_t CCL_LUT1CTRLC = 0;
+		uint8_t CCL_LUT1TRUTH = 0;
+		uint8_t CCL_LUT2CTRLA = 0;
+		uint8_t CCL_LUT2CTRLB = 0;
+		uint8_t CCL_LUT2CTRLC = 0;
+		uint8_t CCL_LUT2TRUTH = 0;
+		uint8_t CCL_LUT3CTRLA = 0;
+		uint8_t CCL_LUT3CTRLB = 0;
+		uint8_t CCL_LUT3CTRLC = 0;
+		uint8_t CCL_LUT3TRUTH = 0;
 
 		//SRAM
 		uint8_t AnalogCounter = 0;
