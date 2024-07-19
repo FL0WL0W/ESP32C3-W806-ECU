@@ -3,4 +3,5 @@ ESP32C3/.vscode/*
 ESP32C3/.devcontainer/*
 w806 test app/bin/*
 W806-EFIGenie/build/*
+W806-Speeduino/build/*
 W806-EFIGenie/wm_tool
