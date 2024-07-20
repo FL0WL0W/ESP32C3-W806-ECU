@@ -27,6 +27,6 @@ class SPIClass
     uint8_t transfer16(uint16_t);
 };
 
-static SPIClass SPI;
+extern SPIClass SPI;
 
 #endif

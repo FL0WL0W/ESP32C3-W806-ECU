@@ -87,19 +87,4 @@ static const uint8_t A15 = PIN_A15;
 
 #define digitalPinToInterrupt(p) ((p) == 2 ? 0 : ((p) == 3 ? 1 : ((p) >= 18 && (p) <= 21 ? 23 - (p) : NOT_AN_INTERRUPT)))
 
-uint32_t *const PROGMEM port_to_mode_PGM[] = {
-};
-
-uint32_t *const PROGMEM port_to_output_PGM[] = {
-};
-
-uint32_t *const PROGMEM port_to_input_PGM[] = {
-};
-
-const uint8_t PROGMEM digital_pin_to_port_PGM[] = {
-};
-
-const uint32_t PROGMEM digital_pin_to_bit_mask_PGM[] = {
-};
-
 #endif

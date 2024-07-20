@@ -8,12 +8,15 @@
 #include <math.h>
 #include <avr/pgmspace.h>
 #include "Serial.h"
+#include "bits/stl_algobase.h"
+using namespace std;
 
 #ifdef __cplusplus
 extern "C"{
 #endif
 
 #define F(P) P
+#define memcpy_P memcpy
 
 void yield(void);
 
@@ -46,8 +49,6 @@ void yield(void);
 #undef abs
 #endif
 
-#define min(a,b) ((a)<(b)?(a):(b))
-#define max(a,b) ((a)>(b)?(a):(b))
 #define abs(x) ((x)>0?(x):-(x))
 #define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
 #define round(x)     ((x)>=0?(long)((x)+0.5):(long)((x)-0.5))
@@ -55,8 +56,8 @@ void yield(void);
 #define degrees(rad) ((rad)*RAD_TO_DEG)
 #define sq(x) ((x)*(x))
 
-#define interrupts() asm("sei")
-#define noInterrupts() asm("cli")
+#define interrupts() //asm("sei")
+#define noInterrupts() //asm("cli")
 
 #define clockCyclesPerMicrosecond() ( F_CPU / 1000000L )
 #define clockCyclesToMicroseconds(a) ( (a) / clockCyclesPerMicrosecond() )
@@ -93,8 +94,8 @@ int analogRead(uint8_t pin);
 void analogReference(uint8_t mode);
 void analogWrite(uint8_t pin, int val);
 
-unsigned long millis(void);
-unsigned long micros(void);
+uint32_t millis(void);
+uint32_t micros(void);
 void delay(unsigned long ms);
 void delayMicroseconds(unsigned int us);
 unsigned long pulseIn(uint8_t pin, uint8_t state, unsigned long timeout);

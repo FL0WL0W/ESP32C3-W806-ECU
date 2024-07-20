@@ -40,6 +40,7 @@ FetchContent_MakeAvailable(EmbeddedIOServices)
 FetchContent_Declare(
     Speeduino
     URL    https://github.com/noisymime/speeduino/archive/refs/tags/202402.1.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(Speeduino)
 
@@ -57,7 +58,11 @@ file(GLOB_RECURSE USER_CSOURCES src/*.c)
 file(GLOB_RECURSE USER_CPPSOURCES src/*.cpp)
 file(GLOB_RECURSE EmbeddedIOService_SOURCES ${CMAKE_BINARY_DIR}/_deps/embeddedioservices-src/HardwareAbstractions/W80x/src/*.cpp)
 file(GLOB_RECURSE Speeduino_SOURCES ${CMAKE_BINARY_DIR}/_deps/speeduino-src/speeduino/*.cpp)
+list(FILTER Speeduino_SOURCES EXCLUDE REGEX "FRAM/") # remove FRAM
+list(FILTER Speeduino_SOURCES EXCLUDE REGEX "SPIAsEEPROM/") # remove SPIAsEEPROM
 add_compile_definitions(PROGMEM=)
+add_compile_definitions(BOARD_H="board.h")
+add_compile_definitions(ARDUINO=100)
 
 set(SRCS 
         ${USER_CSOURCES} 

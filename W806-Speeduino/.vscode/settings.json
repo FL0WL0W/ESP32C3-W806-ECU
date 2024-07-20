@@ -22,6 +22,12 @@
         ]
     },
     "files.associations": {
-        "compare": "cpp"
+        "*.asm": "avr",
+        "compare": "cpp",
+        "cmath": "cpp",
+        "cstdlib": "cpp",
+        "random": "cpp",
+        "limits": "cpp",
+        "functional": "cpp"
     }
 }

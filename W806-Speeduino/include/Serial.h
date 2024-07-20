@@ -24,6 +24,6 @@ class Stream
     }
 };
 
-static Stream Serial;
+extern Stream Serial;
 
 #endif
