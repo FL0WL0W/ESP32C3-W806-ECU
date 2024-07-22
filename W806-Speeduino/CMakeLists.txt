@@ -44,6 +44,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Speeduino)
 
+#Remove error in globals and replace with warning
+#fix revolutionTime type
+file(READ ${CMAKE_BINARY_DIR}/_deps/speeduino-src/speeduino/globals.h FILE_CONTENTS)
+string(REPLACE "#error" "//#warning" FILE_CONTENTS "${FILE_CONTENTS}")
+string(REPLACE "unsigned long revolutionTime" "uint32_t revolutionTime" FILE_CONTENTS "${FILE_CONTENTS}")
+file(WRITE ${CMAKE_BINARY_DIR}/_deps/speeduino-src/speeduino/globals.h "${FILE_CONTENTS}")
+
 set(TARGET		W806Speeduino)
 
 project(${TARGET} C CXX ASM)

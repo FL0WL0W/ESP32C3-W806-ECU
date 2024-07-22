@@ -11,6 +11,9 @@
 #include "bits/stl_algobase.h"
 using namespace std;
 
+#define ATOMIC_BLOCK(P) P
+#define ATOMIC_RESTORESTATE 
+
 #ifdef __cplusplus
 extern "C"{
 #endif
