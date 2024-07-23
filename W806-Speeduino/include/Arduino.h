@@ -12,7 +12,7 @@
 #define ATOMIC_RESTORESTATE 
 
 #ifdef __cplusplus
-#include "Serial.h"
+#include "HardwareSerial.h"
 #include "ITimerService.h"
 #include "IDigitalService.h"
 #include "IAnalogService.h"

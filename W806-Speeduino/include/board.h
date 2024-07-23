@@ -24,7 +24,7 @@
   #define SERIAL_BUFFER_SIZE (256+7+1) //Size of the serial buffer used by new comms protocol. The largest single packet is the O2 calibration which is 256 bytes + 7 bytes of overhead
   #define FPU_MAX_SIZE 0 //Size of the FPU buffer. 0 means no FPU.
   #define EEPROM_LIB_H "W806EEPROM.h"
-  typedef int eeprom_address_t;
+  typedef size_t eeprom_address_t;
   void initBoard(void);
   uint16_t freeRam(void);
   void doSystemReset(void);

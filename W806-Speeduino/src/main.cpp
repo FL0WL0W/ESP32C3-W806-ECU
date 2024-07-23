@@ -21,6 +21,7 @@
 #include "DigitalService_EG14.h"
 #include "AnalogService_EG14.h"
 #include "TimerService_W80x.h"
+#include "W806EEPROM.h"
 
 EmbeddedIOServices::ATTiny427Expander_Registers _registersU1;
 EmbeddedIOServices::ATTiny427Expander_Registers _registersU2;
@@ -38,6 +39,8 @@ EmbeddedIOServices::AnalogService_ATTiny427Expander *_analogService_U2;
 EmbeddedIOServices::AnalogService_EG14 *_analogService;
 
 EmbeddedIOServices::TimerService_W80x *_timerService;
+
+EEPROMClass EEPROM(4096);
 
 //undefined function so defining it. not sure WTF in csky libstdc++ is requiring this function, but here it is
 extern "C" size_t write(int fd, const void *buf, size_t count)

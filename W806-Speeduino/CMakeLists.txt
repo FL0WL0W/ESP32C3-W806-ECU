@@ -184,6 +184,7 @@ include_directories(${CMAKE_BINARY_DIR}/_deps/speeduino-src/speeduino)
 file(GLOB_RECURSE USER_CSOURCES src/*.c)
 file(GLOB_RECURSE USER_CPPSOURCES src/*.cpp)
 file(GLOB_RECURSE EmbeddedIOService_SOURCES ${CMAKE_BINARY_DIR}/_deps/embeddedioservices-src/HardwareAbstractions/W80x/src/*.cpp)
+list(FILTER EmbeddedIOService_SOURCES EXCLUDE REGEX "CommunicationService") # remove CommunicationService
 configure_file(${CMAKE_BINARY_DIR}/_deps/speeduino-src/speeduino/speeduino.ino ${CMAKE_BINARY_DIR}/_deps/speeduino-src/speeduino/speeduino.cpp) #add speeduino.ino
 file(GLOB_RECURSE Speeduino_SOURCES ${CMAKE_BINARY_DIR}/_deps/speeduino-src/speeduino/*.cpp)
 list(FILTER Speeduino_SOURCES EXCLUDE REGEX "FRAM/") # remove FRAM
