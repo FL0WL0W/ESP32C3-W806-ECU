@@ -1,3 +1,6 @@
+#include "stdint.h"
+#include "stdlib.h"
+
 #ifndef SERIAL_H
 #define SERIAL_H
 

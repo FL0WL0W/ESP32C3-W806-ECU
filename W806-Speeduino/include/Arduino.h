@@ -7,15 +7,27 @@
 #include <string.h>
 #include <math.h>
 #include <avr/pgmspace.h>
-#include "Serial.h"
-#include "bits/stl_algobase.h"
-using namespace std;
 
 #define ATOMIC_BLOCK(P) P
 #define ATOMIC_RESTORESTATE 
 
 #ifdef __cplusplus
+#include "Serial.h"
+#include "ITimerService.h"
+#include "IDigitalService.h"
+#include "IAnalogService.h"
+#include "IPwmService.h"
+#include "bits/stl_algobase.h"
+#include "PortMap.h"
+using namespace std;
+extern EmbeddedIOServices::ITimerService *Arduino_TimerService;
+extern EmbeddedIOServices::IDigitalService *Arduino_DigitalService;
+extern EmbeddedIOServices::IAnalogService *Arduino_AnalogService;
+extern EmbeddedIOServices::IPwmService *Arduino_PwmService;
 extern "C"{
+#else
+#define min(a,b) ((a)<(b)?(a):(b))
+#define max(a,b) ((a)>(b)?(a):(b))
 #endif
 
 #define F(P) P
@@ -29,6 +41,7 @@ void yield(void);
 #define INPUT 0x0
 #define OUTPUT 0x1
 #define INPUT_PULLUP 0x2
+#define INPUT_ANALOG 0x3
 
 #define PI 3.1415926535897932384626433832795
 #define HALF_PI 1.5707963267948966192313216916398
@@ -87,25 +100,15 @@ typedef unsigned int word;
 typedef bool boolean;
 typedef uint8_t byte;
 
-void init(void);
-void initVariant(void);
-
 void pinMode(uint8_t pin, uint8_t mode);
-void digitalWrite(uint8_t pin, uint8_t val);
-int digitalRead(uint8_t pin);
+void digitalWrite(uint8_t pin, bool val);
+bool digitalRead(uint8_t pin);
 int analogRead(uint8_t pin);
-void analogReference(uint8_t mode);
 void analogWrite(uint8_t pin, int val);
 
 uint32_t millis(void);
 uint32_t micros(void);
 void delay(unsigned long ms);
-void delayMicroseconds(unsigned int us);
-unsigned long pulseIn(uint8_t pin, uint8_t state, unsigned long timeout);
-unsigned long pulseInLong(uint8_t pin, uint8_t state, unsigned long timeout);
-
-void shiftOut(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder, uint8_t val);
-uint8_t shiftIn(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder);
 
 void attachInterrupt(uint8_t interruptNum, void (*userFunc)(void), int mode);
 void detachInterrupt(uint8_t interruptNum);
@@ -113,53 +116,15 @@ void detachInterrupt(uint8_t interruptNum);
 void setup(void);
 void loop(void);
 
-// Get the bit location within the hardware port of the given virtual pin.
-// This comes from the pins_*.c file for the active board configuration.
-
-#define analogInPinToBit(P) (P)
-
-// On the ATmega1280, the addresses of some of the port registers are
-// greater than 255, so we can't store them in uint8_t's.
-extern uint32_t *const PROGMEM port_to_mode_PGM[];
-extern uint32_t *const PROGMEM port_to_input_PGM[];
-extern uint32_t *const PROGMEM port_to_output_PGM[];
-
-extern const uint8_t PROGMEM digital_pin_to_port_PGM[];
-// extern const uint8_t PROGMEM digital_pin_to_bit_PGM[];
-extern const uint32_t PROGMEM digital_pin_to_bit_mask_PGM[];
-extern const uint32_t PROGMEM digital_pin_to_timer_PGM[];
-
-// Get the bit location within the hardware port of the given virtual pin.
-// This comes from the pins_*.c file for the active board configuration.
-// 
-// These perform slightly better as macros compared to inline functions
-//
-#define digitalPinToPort(P) ( digital_pin_to_port_PGM[P] )
-#define digitalPinToBitMask(P) ( digital_pin_to_bit_mask_PGM[P] )
-#define digitalPinToTimer(P) ( digital_pin_to_timer_PGM[P] )
-#define analogInPinToBit(P) (P)
-#define portOutputRegister(P) ( port_to_output_PGM[P] )
-#define portInputRegister(P) ( port_to_input_PGM[P] )
-#define portModeRegister(P) (  port_to_mode_PGM[P] )
+#define digitalPinToPort(P) P
+#define digitalPinToBitMask(P) 0x1
+#define portInputRegister portOutputRegister
+#define portModeRegister(P) 0
 
 #define NOT_A_PIN 0
 #define NOT_A_PORT 0
 
 #define NOT_AN_INTERRUPT -1
-
-#ifdef ARDUINO_MAIN
-#define PA 1
-#define PB 2
-#define PC 3
-#define PD 4
-#define PE 5
-#define PF 6
-#define PG 7
-#define PH 8
-#define PJ 10
-#define PK 11
-#define PL 12
-#endif
 
 #ifdef __cplusplus
 } // extern "C"
@@ -172,14 +137,7 @@ uint16_t makeWord(byte h, byte l);
 
 #define word(...) makeWord(__VA_ARGS__)
 
-
-void tone(uint8_t _pin, unsigned int frequency, unsigned long duration = 0);
-void noTone(uint8_t _pin);
-
 // WMath prototypes
-long random(long);
-long random(long, long);
-void randomSeed(unsigned long);
 long map(long, long, long, long, long);
 
 #endif

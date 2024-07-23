@@ -1,4 +1,5 @@
-#include "ITimerService.h"
+#include "Arduino.h"
+#include <limits>
 
 #ifndef BOARD_W806_H
 #define BOARD_W806_H
@@ -7,12 +8,14 @@
 ***********************************************************************************************************
 * General
 */
+
+  #define PORT_TYPE GPIOPort_EIOS
+  #define PINMASK_TYPE uint8_t
+
   #define INJ_CHANNELS 8
   #define IGN_CHANNELS 8
   #define BOARD_MAX_IO_PINS 100
   #define BOARD_MAX_DIGITAL_PINS 100
-  #define PORT_TYPE uint32_t
-  #define PINMASK_TYPE uint32_t
   #define RTC_LIB_H "stdlib.h"
 
   #define COMPARE_TYPE EmbeddedIOServices::tick_t
@@ -36,13 +39,11 @@
 ***********************************************************************************************************
 * Schedules
 */
-
-  extern EmbeddedIOServices::ITimerService *Speeduino_TimerService;
   struct ScheduleCounter
   {
     EmbeddedIOServices::tick_t operator+(unsigned int a)
     {
-      return Speeduino_TimerService->GetTick() + a;
+      return Arduino_TimerService->GetTick() + a;
     }
   };
 
@@ -51,14 +52,26 @@
   struct ScheduleCompare 
   {
     EmbeddedIOServices::Task task;
+    bool enabled = false;
     ScheduleCompare(EmbeddedIOServices::callback_t callBack) : task(callBack)
     {
 
     }
 
+    void enable() {
+      Arduino_TimerService->ScheduleTask(&task, task.ScheduledTick);
+    }
+
+    void disable() {
+      Arduino_TimerService->UnScheduleTask(&task);
+    }
+
     void operator=(EmbeddedIOServices::tick_t a)
     {
-      Speeduino_TimerService->ScheduleTask(&task, a);
+      if(enabled)
+        Arduino_TimerService->ScheduleTask(&task, a);
+      else
+        task.ScheduledTick = a;
     }
   };
   
@@ -116,53 +129,49 @@
   #define IGN8_COMPARE  Ignition8Schedule
 
   //Note that the interrupt flag is reset BEFORE the interrupt is enabled
-static inline void FUEL1_TIMER_ENABLE(void) { ;} 
-static inline void FUEL2_TIMER_ENABLE(void) {  } 
-static inline void FUEL3_TIMER_ENABLE(void) {  } 
-static inline void FUEL4_TIMER_ENABLE(void) {  } 
-static inline void FUEL5_TIMER_ENABLE(void) {  } 
-static inline void FUEL6_TIMER_ENABLE(void) {  } 
-static inline void FUEL7_TIMER_ENABLE(void) {  } 
-static inline void FUEL8_TIMER_ENABLE(void) {  } 
+static inline void FUEL1_TIMER_ENABLE(void) { Fuel1Schedule.enable(); } 
+static inline void FUEL2_TIMER_ENABLE(void) { Fuel2Schedule.enable(); } 
+static inline void FUEL3_TIMER_ENABLE(void) { Fuel3Schedule.enable(); } 
+static inline void FUEL4_TIMER_ENABLE(void) { Fuel4Schedule.enable(); } 
+static inline void FUEL5_TIMER_ENABLE(void) { Fuel5Schedule.enable(); } 
+static inline void FUEL6_TIMER_ENABLE(void) { Fuel6Schedule.enable(); } 
+static inline void FUEL7_TIMER_ENABLE(void) { Fuel7Schedule.enable(); } 
+static inline void FUEL8_TIMER_ENABLE(void) { Fuel8Schedule.enable(); } 
 
-static inline void FUEL1_TIMER_DISABLE(void) {  } 
-static inline void FUEL2_TIMER_DISABLE(void) {  } 
-static inline void FUEL3_TIMER_DISABLE(void) {  } 
-static inline void FUEL4_TIMER_DISABLE(void) {  } 
-static inline void FUEL5_TIMER_DISABLE(void) {  } 
-static inline void FUEL6_TIMER_DISABLE(void) {  } 
-static inline void FUEL7_TIMER_DISABLE(void) {  } 
-static inline void FUEL8_TIMER_DISABLE(void) {  } 
+static inline void FUEL1_TIMER_DISABLE(void) { Fuel1Schedule.disable(); } 
+static inline void FUEL2_TIMER_DISABLE(void) { Fuel2Schedule.disable(); } 
+static inline void FUEL3_TIMER_DISABLE(void) { Fuel3Schedule.disable(); } 
+static inline void FUEL4_TIMER_DISABLE(void) { Fuel4Schedule.disable(); } 
+static inline void FUEL5_TIMER_DISABLE(void) { Fuel5Schedule.disable(); } 
+static inline void FUEL6_TIMER_DISABLE(void) { Fuel6Schedule.disable(); } 
+static inline void FUEL7_TIMER_DISABLE(void) { Fuel7Schedule.disable(); } 
+static inline void FUEL8_TIMER_DISABLE(void) { Fuel8Schedule.disable(); } 
 
-static inline void IGN1_TIMER_ENABLE(void) {  } 
-static inline void IGN2_TIMER_ENABLE(void) {  } 
-static inline void IGN3_TIMER_ENABLE(void) {  } 
-static inline void IGN4_TIMER_ENABLE(void) {  } 
-static inline void IGN5_TIMER_ENABLE(void) {  } 
-static inline void IGN6_TIMER_ENABLE(void) {  } 
-static inline void IGN7_TIMER_ENABLE(void) {  } 
-static inline void IGN8_TIMER_ENABLE(void) {  } 
+static inline void IGN1_TIMER_ENABLE(void) { Ignition1Schedule.enable(); } 
+static inline void IGN2_TIMER_ENABLE(void) { Ignition2Schedule.enable(); } 
+static inline void IGN3_TIMER_ENABLE(void) { Ignition3Schedule.enable(); } 
+static inline void IGN4_TIMER_ENABLE(void) { Ignition4Schedule.enable(); } 
+static inline void IGN5_TIMER_ENABLE(void) { Ignition5Schedule.enable(); } 
+static inline void IGN6_TIMER_ENABLE(void) { Ignition6Schedule.enable(); } 
+static inline void IGN7_TIMER_ENABLE(void) { Ignition7Schedule.enable(); } 
+static inline void IGN8_TIMER_ENABLE(void) { Ignition8Schedule.enable(); } 
 
-static inline void IGN1_TIMER_DISABLE(void) { } 
-static inline void IGN2_TIMER_DISABLE(void) { } 
-static inline void IGN3_TIMER_DISABLE(void) { } 
-static inline void IGN4_TIMER_DISABLE(void) { } 
-static inline void IGN5_TIMER_DISABLE(void) { } 
-static inline void IGN6_TIMER_DISABLE(void) { } 
-static inline void IGN7_TIMER_DISABLE(void) { } 
-static inline void IGN8_TIMER_DISABLE(void) { } 
+static inline void IGN1_TIMER_DISABLE(void) { Ignition1Schedule.disable(); } 
+static inline void IGN2_TIMER_DISABLE(void) { Ignition2Schedule.disable(); } 
+static inline void IGN3_TIMER_DISABLE(void) { Ignition3Schedule.disable(); } 
+static inline void IGN4_TIMER_DISABLE(void) { Ignition4Schedule.disable(); } 
+static inline void IGN5_TIMER_DISABLE(void) { Ignition5Schedule.disable(); } 
+static inline void IGN6_TIMER_DISABLE(void) { Ignition6Schedule.disable(); } 
+static inline void IGN7_TIMER_DISABLE(void) { Ignition7Schedule.disable(); } 
+static inline void IGN8_TIMER_DISABLE(void) { Ignition8Schedule.disable(); } 
 
-  #define MAX_TIMER_PERIOD 262140UL //The longest period of time (in uS) that the timer can permit (IN this case it is 65535 * 4, as each timer tick is 4uS)
+  #define MAX_TIMER_PERIOD (uint64_t)(std::numeric_limits<EmbeddedIOServices::tick_t>::max() / 2 * 1000000.0f / Arduino_TimerService->GetTicksPerSecond()) //The longest period of time (in uS) that the timer can permit (IN this case it is 65535 * 4, as each timer tick is 4uS)
   #define uS_TO_TIMER_COMPARE(uS1) ((uS1) >> 2) //Converts a given number of uS into the required number of timer ticks until that time has passed
 
 /*
 ***********************************************************************************************************
 * Auxiliaries
 */
-  #define ENABLE_BOOST_TIMER()  
-  #define DISABLE_BOOST_TIMER() 
-  #define ENABLE_VVT_TIMER()    
-  #define DISABLE_VVT_TIMER()   
 
   extern ScheduleCompare BoostSchedule;
   #define BOOST_TIMER_COMPARE   BoostSchedule
@@ -171,6 +180,10 @@ static inline void IGN8_TIMER_DISABLE(void) { }
   #define VVT_TIMER_COMPARE     VVTSchedule
   #define VVT_TIMER_COUNTER     EIOSCounter
 
+  #define ENABLE_BOOST_TIMER()  { BoostSchedule.enable(); }
+  #define DISABLE_BOOST_TIMER() { BoostSchedule.disable(); }
+  #define ENABLE_VVT_TIMER()    { VVTSchedule.enable(); }
+  #define DISABLE_VVT_TIMER()   { VVTSchedule.disable(); }
 /*
 ***********************************************************************************************************
 * Idle
@@ -179,8 +192,8 @@ static inline void IGN8_TIMER_DISABLE(void) { }
   #define IDLE_COUNTER EIOSCounter
   #define IDLE_COMPARE IdleSchedule
 
-  #define IDLE_TIMER_ENABLE() 
-  #define IDLE_TIMER_DISABLE() 
+  #define IDLE_TIMER_ENABLE()  { IdleSchedule.enable(); }
+  #define IDLE_TIMER_DISABLE() { IdleSchedule.disable(); } 
 
 /*
 ***********************************************************************************************************

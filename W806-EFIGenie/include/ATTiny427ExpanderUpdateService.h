@@ -162,7 +162,7 @@ namespace EmbeddedIOServices
 		}
 	};
 
-	class ATTiny427ExpanderUpdateService : public IDigitalService
+	class ATTiny427ExpanderUpdateService
 	{
 		ATTiny427Expander_Registers *_registers;
 		ATTiny427Expander_Registers _previousRegisters;
