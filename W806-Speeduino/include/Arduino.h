@@ -1,5 +1,5 @@
-#ifndef Arduino_h
-#define Arduino_h
+#ifndef ARDUINO_H
+#define ARDUINO_H
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -29,9 +29,6 @@ extern "C"{
 #define min(a,b) ((a)<(b)?(a):(b))
 #define max(a,b) ((a)>(b)?(a):(b))
 #endif
-
-#define F(P) P
-#define memcpy_P memcpy
 
 void yield(void);
 

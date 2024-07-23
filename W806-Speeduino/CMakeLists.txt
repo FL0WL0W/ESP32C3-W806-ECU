@@ -67,6 +67,12 @@ string(REPLACE "&& (pinVSS == pinTrigger2) && !BIT_CHECK(decoderState, BIT_DECOD
 string(REPLACE "&& (pinFlex == pinTrigger2) && !BIT_CHECK(decoderState, BIT_DECODER_HAS_SECONDARY)" "&& ((configPage10.vvt2Enabled < 1 && pinFlex == pinTrigger3) || ((pinFlex == pinTrigger2) && !BIT_CHECK(decoderState, BIT_DECODER_HAS_SECONDARY)))" FILE_CONTENTS "${FILE_CONTENTS}")
 file(WRITE ${CMAKE_BINARY_DIR}/_deps/speeduino-src/speeduino/init.h "${FILE_CONTENTS}")
 
+file(READ ${CMAKE_BINARY_DIR}/_deps/speeduino-src/speeduino/sensors.cpp FILE_CONTENTS)
+string(REPLACE "//Channel is active and analog\n        pinMode( pinNumber, INPUT);" "//Channel is active and analog\n        pinMode( pinNumber, INPUT_ANALOG);" FILE_CONTENTS "${FILE_CONTENTS}")
+file(WRITE ${CMAKE_BINARY_DIR}/_deps/speeduino-src/speeduino/sensors.cpp "${FILE_CONTENTS}")
+
+
+
 file(READ ${CMAKE_BINARY_DIR}/_deps/speeduino-src/reference/speeduino.ini FILE_CONTENTS)
 string(REPLACE "\"INVALID\", \"INVALID\", \"3\"" "\"1\", \"2\", \"3\"" FILE_CONTENTS "${FILE_CONTENTS}")
 string(REPLACE 
@@ -190,6 +196,7 @@ file(GLOB_RECURSE Speeduino_SOURCES ${CMAKE_BINARY_DIR}/_deps/speeduino-src/spee
 list(FILTER Speeduino_SOURCES EXCLUDE REGEX "FRAM/") # remove FRAM
 list(FILTER Speeduino_SOURCES EXCLUDE REGEX "SPIAsEEPROM/") # remove SPIAsEEPROM
 list(FILTER Speeduino_SOURCES EXCLUDE REGEX "init.cpp") # remove init
+list(FILTER Speeduino_SOURCES EXCLUDE REGEX "/test/") # remove test
 add_compile_definitions(PROGMEM=)
 add_compile_definitions(BOARD_H="board.h")
 add_compile_definitions(ARDUINO=100)
