@@ -16,6 +16,7 @@
   #define IGN_CHANNELS 8
   #define BOARD_MAX_IO_PINS 100
   #define BOARD_MAX_DIGITAL_PINS 100
+  #define BOARD_MAX_ADC_PINS 25
   #define RTC_LIB_H "stdlib.h"
 
   #define COMPARE_TYPE EmbeddedIOServices::tick_t

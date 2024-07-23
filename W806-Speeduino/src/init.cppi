@@ -1,0 +1,37 @@
+//CORE_TEENSY not defined so we are taking over these pinLayouts
+      pinInjector1 = 8;
+      pinInjector2 = 7;
+      pinInjector3 = 6;
+      pinInjector4 = 5;
+      pinInjector5 = 4;
+      pinInjector6 = 3;
+      pinInjector7 = 2;
+      pinInjector8 = 1;
+      pinCoil1 = 24;
+      pinCoil2 = 23;
+      pinCoil3 = 22;
+      pinCoil4 = 21;
+      pinCoil5 = 20;
+      pinCoil6 = 19;
+      pinCoil7 = 18;
+      pinCoil8 = 17;
+      pinTrigger = 34; //The CAS pin
+      pinTrigger2 = 35; //The Cam Sensor pin
+      pinTrigger3 = 36; //The Cam sensor 2 pin
+      pinFlex = 36;
+      pinVSS = 36;
+      pinTPS = 53; //TPS input pin
+      pinMAP = 54; //MAP sensor pin
+      pinIAT = 49; //IAT sensor pin
+      pinCLT = 50; //CLS sensor pin
+      pinO2 = 55; //O2 Sensor pin
+      pinO2_2 = 56; //Second O2 Sensor pin
+      pinBat = 27; //Battery reference voltage pin
+      pinIdle1 = 9; //Single wire idle control
+      pinIdle2 = 10; //2 wire idle control
+      pinResetControl = 0; //Reset control output
+      
+      //TODO//pinStepperDir = 16; //Direction pin  for DRV8825 driver
+      //TODO//pinStepperStep = 17; //Step pin for DRV8825 driver
+      //TODO//pinStepperEnable = 24; //Enable pin for DRV8825
+      #if defined(CORE_TEENSY)

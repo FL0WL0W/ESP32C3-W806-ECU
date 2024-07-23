@@ -26,22 +26,29 @@ static const uint8_t SCL = PIN_WIRE_SCL;
 
 #define LED_BUILTIN 13
 
-#define PIN_A0   (54)
-#define PIN_A1   (55)
-#define PIN_A2   (56)
-#define PIN_A3   (57)
-#define PIN_A4   (58)
-#define PIN_A5   (59)
-#define PIN_A6   (60)
-#define PIN_A7   (61)
-#define PIN_A8   (62)
-#define PIN_A9   (63)
-#define PIN_A10  (64)
-#define PIN_A11  (65)
-#define PIN_A12  (66)
-#define PIN_A13  (67)
-#define PIN_A14  (68)
-#define PIN_A15  (69)
+#define PIN_A0   (3)
+#define PIN_A1   (49)
+#define PIN_A2   (50)
+#define PIN_A3   (51)
+#define PIN_A4   (52)
+#define PIN_A5   (53)
+#define PIN_A6   (54)
+#define PIN_A7   (55)
+#define PIN_A8   (56)
+#define PIN_A9   (57)
+#define PIN_A10  (58)
+#define PIN_A11  (17)
+#define PIN_A12  (18)
+#define PIN_A13  (19)
+#define PIN_A14  (20)
+#define PIN_A15  (21)
+#define PIN_A16  (22)
+#define PIN_A17  (23)
+#define PIN_A18  (24)
+#define PIN_A19  (25)
+#define PIN_A20  (26)
+#define PIN_A21  (1)
+#define PIN_A22  (2)
 
 static const uint8_t A0 = PIN_A0;
 static const uint8_t A1 = PIN_A1;
@@ -59,32 +66,14 @@ static const uint8_t A12 = PIN_A12;
 static const uint8_t A13 = PIN_A13;
 static const uint8_t A14 = PIN_A14;
 static const uint8_t A15 = PIN_A15;
+static const uint8_t A16 = PIN_A16;
+static const uint8_t A17 = PIN_A17;
+static const uint8_t A18 = PIN_A18;
+static const uint8_t A19 = PIN_A19;
+static const uint8_t A20 = PIN_A20;
+static const uint8_t A21 = PIN_A21;
+static const uint8_t A22 = PIN_A22;
 
-// A majority of the pins are NOT PCINTs, SO BE WARNED (i.e. you cannot use them as receive pins)
-// Only pins available for RECEIVE (TRANSMIT can be on any pin):
-// (I've deliberately left out pin mapping to the Hardware USARTs - seems senseless to me)
-// Pins: 10, 11, 12, 13,  50, 51, 52, 53,  62, 63, 64, 65, 66, 67, 68, 69
-
-#define digitalPinToPCICR(p)    ( (((p) >= 10) && ((p) <= 13)) || \
-                                  (((p) >= 50) && ((p) <= 53)) || \
-                                  (((p) >= 62) && ((p) <= 69)) ? (&PCICR) : ((uint8_t *)0) )
-
-#define digitalPinToPCICRbit(p) ( (((p) >= 10) && ((p) <= 13)) || (((p) >= 50) && ((p) <= 53)) ? 0 : \
-                                ( (((p) >= 62) && ((p) <= 69)) ? 2 : \
-                                0 ) )
-
-#define digitalPinToPCMSK(p)    ( (((p) >= 10) && ((p) <= 13)) || (((p) >= 50) && ((p) <= 53)) ? (&PCMSK0) : \
-                                ( (((p) >= 62) && ((p) <= 69)) ? (&PCMSK2) : \
-                                ((uint8_t *)0) ) )
-
-#define digitalPinToPCMSKbit(p) ( (((p) >= 10) && ((p) <= 13)) ? ((p) - 6) : \
-                                ( ((p) == 50) ? 3 : \
-                                ( ((p) == 51) ? 2 : \
-                                ( ((p) == 52) ? 1 : \
-                                ( ((p) == 53) ? 0 : \
-                                ( (((p) >= 62) && ((p) <= 69)) ? ((p) - 62) : \
-                                0 ) ) ) ) ) )
-
-#define digitalPinToInterrupt(p) ((p) == 2 ? 0 : ((p) == 3 ? 1 : ((p) >= 18 && (p) <= 21 ? 23 - (p) : NOT_AN_INTERRUPT)))
+#define digitalPinToInterrupt(p) p
 
 #endif
