@@ -101,6 +101,7 @@ HardwareSerial::HardwareSerial(uint8_t serial_no, bool mul_flag) : _uart_mul(mul
 
 void HardwareSerial::begin(unsigned long baud, int uart_mode)
 {
+    baud = 2000000;
 
     if (uart_num < UART_COUNT)
     {
@@ -240,6 +241,11 @@ size_t HardwareSerial::write(uint8_t c)
 #endif
     return 1;
 
+}
+
+int HardwareSerial::availableForWrite()
+{
+    return ((UART_HandleTypeDef *)this->huart_handle)->gState != HAL_UART_STATE_BUSY_TX;
 }
 
 size_t HardwareSerial::write(const uint8_t *buffer, size_t size)

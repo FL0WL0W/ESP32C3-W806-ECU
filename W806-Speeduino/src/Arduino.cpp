@@ -7,11 +7,15 @@ EmbeddedIOServices::IPwmService *Arduino_PwmService;
 
 uint32_t millis(void)
 {
+    if(Arduino_TimerService == 0)
+        return 0;
     return Arduino_TimerService->GetTick() / (Arduino_TimerService->GetTicksPerSecond() / 1000.0f);
 }
 
 uint32_t micros(void)
 {
+    if(Arduino_TimerService == 0)
+        return 0;
     return Arduino_TimerService->GetTick() / (Arduino_TimerService->GetTicksPerSecond() / 1000000.0f);
 }
 

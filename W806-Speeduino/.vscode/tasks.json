@@ -1,0 +1,26 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "cmake",
+			"label": "W806-Speeduino: Build",
+			"command": "build",
+			"targets": [
+				"all"
+			],
+			"preset": "${command:cmake.activeBuildPresetName}",
+			"group": "build",
+			"problemMatcher": [],
+			"detail": "Build W806-Speeduino"
+		},
+		{
+			"type": "shell",
+			"label": "W806-Speeduino: Flash",
+			"command": "curl --data-binary @build/W806Speeduino.img http://192.168.4.1/upload/w806",
+			"presentation": {
+				"reveal": "always"
+			},
+			"problemMatcher": []
+		}
+	]
+}

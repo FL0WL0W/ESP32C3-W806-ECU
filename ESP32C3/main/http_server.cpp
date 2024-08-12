@@ -363,20 +363,28 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
 
     while (ack_id != 0x04) {
 
-        ESP_LOGI(TAG, "Remaining size : %d", remaining);
+        ESP_LOGI(TAG, "Remaining size : %d\t\tack_id : %x", remaining, ack_id);
         /* Receive the file part by part into a buffer */
+        received = 0;
         if(remaining > 0) {
-            if (remaining > 0 && (received = httpd_req_recv(req, buf + 3, MIN(remaining, W806_XMODEM_DATA_SIZE))) <= 0) {
-                if (received == HTTPD_SOCK_ERR_TIMEOUT) {
-                    /* Retry if timeout occurred */
-                    continue;
-                }
+            if(remaining > 0 && ack_id == 0x06) {
+                size_t getLen = MIN(remaining, W806_XMODEM_DATA_SIZE);
+                while(received < getLen) {
+                    int r;
+                    if ((r = httpd_req_recv(req, buf + 3 + received, getLen - received)) <= 0) {
+                        if (received == HTTPD_SOCK_ERR_TIMEOUT) {
+                            /* Retry if timeout occurred */
+                            continue;
+                        }
 
-                ESP_LOGE(TAG, "File reception failed!");
-                /* Respond with 500 Internal Server Error */
-                httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to receive file\r\n");
-                ret = ESP_FAIL;
-                goto upload_w806_post_handler_cleanup;
+                        ESP_LOGE(TAG, "File reception failed!");
+                        /* Respond with 500 Internal Server Error */
+                        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to receive file\r\n");
+                        ret = ESP_FAIL;
+                        goto upload_w806_post_handler_cleanup;
+                    }
+                    received += r;
+                }
             }
         } else {
             received = -1;
@@ -392,6 +400,9 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
 
                 if (received > 0)
                 {
+                    /* Keep track of remaining size of
+                    * the file left to be uploaded */
+                    remaining -= received;
                     if (received < W806_XMODEM_DATA_SIZE)
                     {
                         for ( ; received < W806_XMODEM_DATA_SIZE; received++)
@@ -407,6 +418,9 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
                     buf[W806_XMODEM_DATA_SIZE + 3]=(unsigned char)(crc_value >> 8);
                     buf[W806_XMODEM_DATA_SIZE + 4]=(unsigned char)(crc_value);
 
+                    //send frame header
+                    uart_write_bytes(W806_UART_NUM, buf, 5);
+
                     //clear rx buffer
                     size_t size = 0;
                     char *ch = (char *)xRingbufferReceive(rxbuf_handle, &size, 0);
@@ -414,7 +428,7 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
                         vRingbufferReturnItem(rxbuf_handle, ch);
 
                     //send frame
-                    uart_write_bytes(W806_UART_NUM, buf, W806_XMODEM_DATA_SIZE + 5);
+                    uart_write_bytes(W806_UART_NUM, buf + 5, W806_XMODEM_DATA_SIZE);
 
                     //wait for ACK
                     ch = (char *)xRingbufferReceiveUpTo(rxbuf_handle, &size, pdMS_TO_TICKS(1000), 1);
@@ -466,6 +480,9 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
                 }
                 else
                 {
+                    //send frame header
+                    uart_write_bytes(W806_UART_NUM, buf, 5);
+
                     //clear rx buffer
                     size_t size = 0;
                     char *ch = (char *)xRingbufferReceive(rxbuf_handle, &size, 0);
@@ -473,7 +490,7 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
                         vRingbufferReturnItem(rxbuf_handle, ch);
 
                     //send frame
-                    uart_write_bytes(W806_UART_NUM, buf, W806_XMODEM_DATA_SIZE + 5);
+                    uart_write_bytes(W806_UART_NUM, buf + 5, W806_XMODEM_DATA_SIZE);
 
                     //wait for ACK
                     ch = (char *)xRingbufferReceiveUpTo(rxbuf_handle, &size, pdMS_TO_TICKS(1000), 1);
@@ -489,7 +506,7 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
             case 0x18: //waiting
             {
                 size_t size = 0;
-                char *ch = (char *)xRingbufferReceive(rxbuf_handle, &size, 0);
+                char *ch = (char *)xRingbufferReceiveUpTo(rxbuf_handle, &size, pdMS_TO_TICKS(1000), 1);
                 if(size > 0) {
                     vRingbufferReturnItem(rxbuf_handle, ch);
                     ack_id = ch[size-1];
@@ -505,10 +522,6 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
                 goto upload_w806_post_handler_cleanup;
             }
         }
-
-        /* Keep track of remaining size of
-         * the file left to be uploaded */
-        remaining -= received;
     }
 
     ESP_LOGI(TAG, "File reception complete");
@@ -522,9 +535,6 @@ upload_w806_post_handler_cleanup:
     vRingbufferDelete(rxbuf_handle);
     bootset_w806();
     reset_w806();
-    //change baud rate back to 115200
-    uart_config.baud_rate = 115200;
-    ESP_ERROR_CHECK(uart_param_config(W806_UART_NUM, &uart_config));
     return ret;
 }
 

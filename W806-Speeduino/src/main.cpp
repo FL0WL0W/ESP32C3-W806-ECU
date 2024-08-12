@@ -25,20 +25,21 @@
 
 EmbeddedIOServices::ATTiny427Expander_Registers _registersU1;
 EmbeddedIOServices::ATTiny427Expander_Registers _registersU2;
-EmbeddedIOServices::ATTiny427ExpanderUpdateService *_updateServiceU1;
-EmbeddedIOServices::ATTiny427ExpanderUpdateService *_updateServiceU2;
+EmbeddedIOServices::ATTiny427ExpanderUpdateService *_updateServiceU1 = new EmbeddedIOServices::ATTiny427ExpanderUpdateService(&_registersU1);
+EmbeddedIOServices::ATTiny427ExpanderUpdateService *_updateServiceU2 = new EmbeddedIOServices::ATTiny427ExpanderUpdateService(&_registersU2);
 
-EmbeddedIOServices::DigitalService_W80x *_digitalService_W80x;
-EmbeddedIOServices::DigitalService_ATTiny427Expander *_digitalService_U1;
-EmbeddedIOServices::DigitalService_ATTiny427Expander *_digitalService_U2;
-EmbeddedIOServices::DigitalService_EG14 *_digitalService;
+EmbeddedIOServices::DigitalService_W80x *_digitalService_W80x = new EmbeddedIOServices::DigitalService_W80x();;
+EmbeddedIOServices::DigitalService_ATTiny427Expander *_digitalService_U1 = new EmbeddedIOServices::DigitalService_ATTiny427Expander(&_registersU1);
+EmbeddedIOServices::DigitalService_ATTiny427Expander *_digitalService_U2 = new EmbeddedIOServices::DigitalService_ATTiny427Expander(&_registersU2);
+EmbeddedIOServices::DigitalService_EG14 *_digitalService = new EmbeddedIOServices::DigitalService_EG14(_digitalService_W80x, _digitalService_U1, _digitalService_U2);
 
-EmbeddedIOServices::AnalogService_W80x *_analogService_W80x;
-EmbeddedIOServices::AnalogService_ATTiny427Expander *_analogService_U1;
-EmbeddedIOServices::AnalogService_ATTiny427Expander *_analogService_U2;
-EmbeddedIOServices::AnalogService_EG14 *_analogService;
 
-EmbeddedIOServices::TimerService_W80x *_timerService;
+EmbeddedIOServices::AnalogService_W80x *_analogService_W80x = new EmbeddedIOServices::AnalogService_W80x();
+EmbeddedIOServices::AnalogService_ATTiny427Expander *_analogService_U1 = new EmbeddedIOServices::AnalogService_ATTiny427Expander(&_registersU1);
+EmbeddedIOServices::AnalogService_ATTiny427Expander *_analogService_U2 = new EmbeddedIOServices::AnalogService_ATTiny427Expander(&_registersU2);
+EmbeddedIOServices::AnalogService_EG14 *_analogService = new EmbeddedIOServices::AnalogService_EG14(_analogService_W80x, _analogService_U1, _analogService_U2);
+
+EmbeddedIOServices::TimerService_W80x *_timerService = new EmbeddedIOServices::TimerService_W80x(1,0);
 
 EEPROMClass EEPROM(4096);
 
@@ -51,22 +52,6 @@ extern "C" size_t write(int fd, const void *buf, size_t count)
 extern "C" int main(void)
 {
     SystemClock_Config(CPU_CLK_240M);
-    printf("enter main\r\n");
-
-    _updateServiceU1 = new EmbeddedIOServices::ATTiny427ExpanderUpdateService(&_registersU1);
-    _updateServiceU2 = new EmbeddedIOServices::ATTiny427ExpanderUpdateService(&_registersU2);
-
-    _digitalService_W80x = new EmbeddedIOServices::DigitalService_W80x();
-    _digitalService_U1 = new EmbeddedIOServices::DigitalService_ATTiny427Expander(&_registersU1);
-    _digitalService_U2 = new EmbeddedIOServices::DigitalService_ATTiny427Expander(&_registersU2);
-    _digitalService = new EmbeddedIOServices::DigitalService_EG14(_digitalService_W80x, _digitalService_U1, _digitalService_U2);
-
-    _analogService_W80x = new EmbeddedIOServices::AnalogService_W80x();
-    _analogService_U1 = new EmbeddedIOServices::AnalogService_ATTiny427Expander(&_registersU1);
-    _analogService_U2 = new EmbeddedIOServices::AnalogService_ATTiny427Expander(&_registersU2);
-    _analogService = new EmbeddedIOServices::AnalogService_EG14(_analogService_W80x, _analogService_U1, _analogService_U2);
-
-    _timerService = new EmbeddedIOServices::TimerService_W80x(1,0);
 
     Arduino_DigitalService = _digitalService;
     Arduino_AnalogService = _analogService;

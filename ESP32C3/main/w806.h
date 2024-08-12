@@ -2,6 +2,7 @@
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "uart_listen.h"
 
 #ifndef W806_H
 #define W806_H
@@ -28,6 +29,17 @@ const static unsigned char wm_tool_chip_cmd_get_mac[]  = {0x21, 0x06, 0x00, 0xea
 #endif
 static inline void reset_w806()
 {
+    uart_config_t uart_config = {
+        .baud_rate = 115200,
+        .data_bits = UART_DATA_8_BITS,
+        .parity    = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .source_clk = UART_SCLK_DEFAULT,
+    };
+    if(gpio_get_level(W806_BOOT_PIN))
+        uart_config.baud_rate = 2000000;
+
     ESP_LOGI("W806", "Resetting");
     ESP_ERROR_CHECK(gpio_set_level(W806_RESET_PIN, 0));
     vTaskDelay(pdMS_TO_TICKS(1));

@@ -202,10 +202,10 @@ add_compile_definitions(BOARD_H="board.h")
 add_compile_definitions(ARDUINO=100)
 
 set(SRCS 
-        ${USER_CSOURCES} 
-        ${USER_CPPSOURCES} 
+        ${Speeduino_SOURCES}
         ${EmbeddedIOService_SOURCES}
-        ${Speeduino_SOURCES})
+        ${USER_CPPSOURCES} 
+        ${USER_CSOURCES} )
 add_executable(${TARGET}.elf ${SRCS})
 
 target_link_libraries(${TARGET}.elf w806_bsp)

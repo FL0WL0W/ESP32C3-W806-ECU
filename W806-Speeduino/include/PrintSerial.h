@@ -7,46 +7,17 @@
  *
  * Copyright (c) 2019 Winner Microelectronics Co., Ltd.
  */
-#ifndef _HARDWARESERIAL_H_
-#define _HARDWARESERIAL_H_
+#ifndef _PRINTSERIAL_H_
+#define _PRINTSERIAL_H_
 
 #include "Stream.h"
-
-
-#define UART_COUNT 6
-
-// UART RX interrupt settings
-#define IT_LEN 0 // 0 or greater,  0: the interrupt callback can be triggered after receiving variable length data;
-                 // greater than 0: the interrupt callback can be triggered only after receiving N length data
-#define _UART_RX_BUF_SIZE 128
-
-#define SERIAL_PRINTF_BUFFER_SIZE 64 // Automatically expands on longer output
-
-#define REMAP_TX_RX 1
-
-// Define config for Serial.begin(baud, config);
-// Note. w80x doesn't support as many different Serial modes as AVR or SAM cores.
-
-#define SERIAL_8N1 (UART_STOPBITS_1 | UART_PARITY_NONE)
-#define SERIAL_8N2 (UART_STOPBITS_2 | UART_PARITY_NONE)
-
-#define SERIAL_8E1 (UART_STOPBITS_1 | UART_PARITY_EVEN)
-#define SERIAL_8E2 (UART_STOPBITS_2 | UART_PARITY_EVEN)
-
-#define SERIAL_8O1 (UART_STOPBITS_1 | UART_PARITY_ODD)
-#define SERIAL_8O2 (UART_STOPBITS_2 | UART_PARITY_ODD)
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-#include "wm_fifo.h"
 
-#if USE_IRQ_UART_TX
-#define _UART_TX_BUF_SIZE 128
-#endif
-
-    class HardwareSerial : public Stream
+    class PrintSerial : public Stream
     {
     public:
         using Stream::write;
@@ -69,29 +40,6 @@ extern "C"
          * @addtogroup Serial
          * @{
          */
-
-        /**
-         * @brief       This constructor is used to init hardware serial.
-         * @param[in] serial_no Specify serial_no
-         *
-         * @return 		None
-         *
-         * @note
-         */
-
-        HardwareSerial(uint8_t serial_no);
-
-        /**
-         * @brief       This constructor is used to init hardware serial.
-         * @param[in] serial_no Specify serial_no
-         * @param[in] mul_flag  Flag to use alternative RX TX pins
-         *
-         *
-         * @return 		None
-         *
-         * @note
-         */
-        HardwareSerial(uint8_t serial_no, bool mul_flag);
 
         /**
          * @brief       Sets the data rate in bits per second (baud)
@@ -184,7 +132,6 @@ extern "C"
          * @note
          */
         virtual int available(void); // from Stream
-        virtual int availableForWrite(void); // from Stream
 
         /**
          * @brief         Returns the next byte (character) of incoming serial
@@ -223,43 +170,10 @@ extern "C"
          */
         int printf(const char *fmt, ...);
 
-        /**
-         * @brief         Receiver IRQ callback function to copy
-         *                UART FIFO data to the receiver buffer
-         * @param[in]
-         *
-         * @return 		  nothing
-         *
-         * @note
-         */
-        void process_rx(uint8_t *data, int size);
-#if USE_IRQ_UART_TX
-        void process_tx();
-#endif
-
-        bool _uart_mul;
-
-        operator bool();
-    private:
-        void uart_init(unsigned long baud, int uart_mode);
-
-        const uint8_t uart_num;
-        void *huart_handle;
-
-        uint8_t _pbegin = 0;
-        uint8_t _pend = 0;
-        unsigned char _pbuf[_UART_RX_BUF_SIZE] = {0};
-        uint8_t _hal_buf[32] = {0}; // must be greater than or equal to 32 bytes
-        bool _initalized = false;
-#if USE_IRQ_UART_TX
-        _fifo_str tx_fifo;
-        uint8_t _tx_buf[_UART_TX_BUF_SIZE] = {0};
-        uint8_t _hal_tx_buf[32] = {0}; // must be lower than or equal to 32 bytes
-#endif
         
     };
 
-    extern HardwareSerial Serial;
+    extern PrintSerial Serial;
     // extern HardwareSerial Serial1;
 
 #ifdef __cplusplus
