@@ -125,11 +125,11 @@ int main(void)
         // HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_SET);
         // HAL_Delay(250);
         HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_RESET);
-        tx_data[0] = 0x1F;
+        tx_data[0] = 0x0F;
         tx_data[1] = 0x34;
         tx_data[2] = 0x00;
-        tx_data[3] = 0;
-        tx_data[4] = 0;
+        tx_data[3] = 0x1F;
+        tx_data[4] = 0x1E;
         tx_data[5] = 0;
         tx_data[6] = 0;
         tx_data[7] = 0;
@@ -161,13 +161,28 @@ int main(void)
         tx_data[33] = 0;
         tx_data[34] = 0;
         tx_data[35] = 0;
+        tx_data[36] = 0;
+        tx_data[37] = 0;
+        tx_data[38] = 0;
+        tx_data[39] = 0;
+        tx_data[40] = 0;
+        tx_data[41] = 0;
+        tx_data[42] = 0;
+        tx_data[43] = 0;
+        tx_data[44] = 0;
+        tx_data[45] = 0;
+        tx_data[46] = 0;
+        tx_data[47] = 0;
+        tx_data[48] = 0;
 
-        HAL_SPI_TransmitReceive(&hspi, (uint8_t *)tx_data, (uint8_t *)rx_data, 36, 1000);
+        HAL_SPI_TransmitReceive(&hspi, (uint8_t *)tx_data, (uint8_t *)rx_data, 49, 1000);
         HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_SET);
         printf("\r\nrx: ");
         printHexLine(&rx_data[2]);
         printHexLine(&rx_data[18]);
-        printf("%02x %02x", rx_data[34], rx_data[35]);
+        printHexLine(&rx_data[18]);
+        printf("%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x"
+            , rx_data[34], rx_data[35], rx_data[36], rx_data[37], rx_data[38], rx_data[39], rx_data[40], rx_data[41], rx_data[42], rx_data[43], rx_data[44], rx_data[45], rx_data[46], rx_data[47], rx_data[48]);
     }
 }
 

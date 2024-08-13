@@ -7,6 +7,52 @@ namespace EmbeddedIOServices
     {
 		_previousRegisters = *_registers; 
     }
+    void ATTiny427ExpanderUpdateService::Receive(uint8_t *data, size_t size)
+    {
+        size_t dataIndex = 0;
+        while(dataIndex < size)
+        {
+            switch(_receiveState)
+            {
+                case 0: // waiting for read command
+                    break;
+                case 1: // reading high address
+                    break;
+                case 2: // reading low address
+                    switch(_receiveAddress)
+                    {
+                        case 0x0000:
+                            _receiveState = 3;
+                            _receiveIndex = 0;
+                            break;
+                        case 0x3400:
+                            _receiveState = 4;
+                            _receiveIndex = 0;
+                            break;
+                        case 0x3405:
+                            _receiveState = 5;
+                            _receiveLength = 5;
+                            if(_analogReceiveLength > 0)
+                                _receiveLength += _analogReceiveLength + 4;
+                        case 0x340A:
+                            _receiveState = 6;
+                            _receiveLength = 3;
+
+                    }
+                    break;
+                case 3: // reading GPIO
+                    break;
+                case 4: // reading TCB0
+                case 5: // reading TCB1
+                case 6: // reading gpio from main loop
+                case 7: // reading analog
+                    break;
+            }
+
+            dataIndex++;
+        }
+    }
+
 	size_t ATTiny427ExpanderUpdateService::Update(uint8_t inOutBuffer[1024])
 	{
 		uint8_t bufferIndex = 0;

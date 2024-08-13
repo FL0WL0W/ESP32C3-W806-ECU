@@ -5,9 +5,19 @@
 #define ATTINY427EXPANDERUPDATESERVICE_H
 namespace EmbeddedIOServices
 {
+	enum ATTiny427Expander_Comm
+	{
+		UART0,
+		UART0Alternate,
+		UART1,
+		UART1Alternate,
+		SPI,
+		SPIAlternate
+	};
+
 	struct ATTiny427Expander_Registers 
 	{
-		bool AlternateSPI : 1;
+		ATTiny427Expander_Comm Comm;
 
 		//registers
 		uint8_t PORTA_DIR = 0b00000100;
@@ -83,7 +93,7 @@ namespace EmbeddedIOServices
 
 		//SRAM
 		uint8_t AnalogCounter = 0;
-		uint16_t AnalogValues[11];
+		uint16_t AnalogValues[14];
 		uint8_t TCB0Counter = 0;
 		union
 		{

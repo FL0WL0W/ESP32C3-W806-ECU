@@ -22,6 +22,10 @@
         ]
     },
     "files.associations": {
-        "cstdint": "cpp"
+        "*.asm": "avr",
+        "cstdint": "cpp",
+        "array": "cpp",
+        "string": "cpp",
+        "string_view": "cpp"
     }
 }
