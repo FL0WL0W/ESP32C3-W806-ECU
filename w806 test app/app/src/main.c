@@ -68,11 +68,11 @@ int main(void)
     tx_data[setupIterator++] = 0x01; //enable RESRDY intterupt
 
     //start ADC
-    // tx_data[setupIterator++] = 0xC3; //write 3 bytes to 8 bit address using existing high byte
-    // tx_data[setupIterator++] = 0x08; //address low
-    // tx_data[setupIterator++] = 0x05; //SAMPDUR = 5. this give a sample duration of 4us
-    // tx_data[setupIterator++] = 0x00; //no accumulation, accumulation done in software so the readings are evenly spaced
-    // tx_data[setupIterator++] = 0x11; //single 12 bit mode and start
+    tx_data[setupIterator++] = 0xC3; //write 3 bytes to 8 bit address using existing high byte
+    tx_data[setupIterator++] = 0x08; //address low
+    tx_data[setupIterator++] = 0x05; //SAMPDUR = 5. this give a sample duration of 4us
+    tx_data[setupIterator++] = 0x00; //no accumulation, accumulation done in software so the readings are evenly spaced
+    tx_data[setupIterator++] = 0x11; //single 12 bit mode and start
 
     //setup SENT Event
     tx_data[setupIterator++] = 0x81; //write 1 byte to 16 bit address
@@ -128,8 +128,8 @@ int main(void)
         tx_data[0] = 0x0F;
         tx_data[1] = 0x34;
         tx_data[2] = 0x00;
-        tx_data[3] = 0;
-        tx_data[4] = 0;
+        tx_data[3] = 0x1F;
+        tx_data[4] = 0x1E;
         tx_data[5] = 0;
         tx_data[6] = 0;
         tx_data[7] = 0;
@@ -167,9 +167,9 @@ int main(void)
         tx_data[39] = 0;
         tx_data[40] = 0;
         tx_data[41] = 0;
-        tx_data[42] = 1;
-        tx_data[43] = 6;
-        tx_data[44] = 5;
+        tx_data[42] = 0;
+        tx_data[43] = 0;
+        tx_data[44] = 0;
         tx_data[45] = 0;
         tx_data[46] = 0;
         tx_data[47] = 0;
@@ -180,8 +180,7 @@ int main(void)
         printf("\r\nrx: ");
         printHexLine(&rx_data[2]);
         printHexLine(&rx_data[18]);
-        printHexLine(&rx_data[18]);
-        printf("%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x"
+        printf("%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x"
             , rx_data[34], rx_data[35], rx_data[36], rx_data[37], rx_data[38], rx_data[39], rx_data[40], rx_data[41], rx_data[42], rx_data[43], rx_data[44], rx_data[45], rx_data[46], rx_data[47], rx_data[48]);
     }
 }
