@@ -62,7 +62,7 @@ extern "C" bool UPDI_Write(uint8_t val)
 //UPDI send Break
 extern "C" void UPDI_Break()
 {
-    uint32_t baudrate = 0;
+    uint32_t baudrate = 100000;
 
     uart_wait_tx_done(UPDI_uart_num, pdMS_TO_TICKS(30)); //wait for all bytes to be flushed
     uart_get_baudrate(UPDI_uart_num, &baudrate);
@@ -74,7 +74,7 @@ extern "C" void UPDI_Break()
 
 extern "C" void UPDI_Idle()
 {
-    uint32_t baudrate = 0;
+    uint32_t baudrate = 100000;
     uart_get_baudrate(UPDI_uart_num, &baudrate);
     esp_rom_delay_us(15000000/baudrate);
 }
@@ -137,9 +137,9 @@ bool UPDI_Enable(uart_port_t uart_num, gpio_num_t tx_pin, gpio_num_t rx_pin)
 
     //send enable pulse
     gpio_set_level(tx_pin, 0);
-    vTaskDelay(pdMS_TO_TICKS(10));
+    vTaskDelay(pdMS_TO_TICKS(25));
     gpio_set_level(tx_pin, 1);
-    vTaskDelay(pdMS_TO_TICKS(10));
+    vTaskDelay(pdMS_TO_TICKS(25));
     gpio_set_level(tx_pin, 0);
     gpio_set_level(tx_pin, 1);
 

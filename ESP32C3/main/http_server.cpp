@@ -181,14 +181,8 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
     int received;
     esp_err_t ret = ESP_OK;
 
-    uart_config_t uart_config = {
-        .baud_rate = 2000000,
-        .data_bits = UART_DATA_8_BITS,
-        .parity    = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_DEFAULT,
-    };
+    uint32_t previousBaudRate;
+    ESP_ERROR_CHECK(uart_get_baudrate(W806_UART_NUM, &previousBaudRate));
 
     /* File cannot be larger than a limit */
     if (req->content_len > W806_FLASH_SIZE) {
@@ -227,6 +221,10 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
     }
 
     //reset w806
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/");
+    httpd_resp_set_type(req, "text/plain");
+    httpd_resp_sendstr_chunk(req, "Resetting W806 into flash mode\r\n");
     bootreset_w806();
     reset_w806();
 
@@ -252,6 +250,7 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
             break;
         }
     }
+    httpd_resp_sendstr_chunk(req, "Syncing\r\n");
 
     //sync
     int64_t start = get_timestamp(); 
@@ -303,11 +302,13 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
         }
     } while (cnt < 3);
 
+    httpd_resp_sendstr_chunk(req, "Changing baud rate to 2Mhz\r\n");
     //change baud rate to 2M
     uart_write_bytes(W806_UART_NUM, wm_tool_chip_cmd_b2000000, sizeof(wm_tool_chip_cmd_b2000000));
     vTaskDelay(pdMS_TO_TICKS(100));
-    ESP_ERROR_CHECK(uart_param_config(W806_UART_NUM, &uart_config));
+    ESP_ERROR_CHECK(uart_set_baudrate(W806_UART_NUM, 2000000));
 
+    httpd_resp_sendstr_chunk(req, "Verifying connection\r\n");
     //get MAC to verify connection
     uart_write_bytes(W806_UART_NUM, wm_tool_chip_cmd_get_mac, sizeof(wm_tool_chip_cmd_get_mac));
     start = get_timestamp(); 
@@ -355,12 +356,13 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
         {
             ESP_LOGE(TAG, "Failed to get MAC");
             /* Respond with 500 Internal Server Error */
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to get MAC\r\n");
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to verify connection\r\n");
             ret = ESP_FAIL;
             goto upload_w806_post_handler_cleanup;
         }
     } while (1);
 
+    httpd_resp_sendstr_chunk(req, "Sending File ");
     while (ack_id != 0x04) {
 
         ESP_LOGI(TAG, "Remaining size : %d\t\tack_id : %x", remaining, ack_id);
@@ -395,6 +397,7 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
         {
             case 0x06:
             {
+                httpd_resp_sendstr_chunk(req, ".");
                 retry_num = 0;
                 pack_counter++;
 
@@ -470,6 +473,7 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
             }
             case 0x15:
             {
+                httpd_resp_sendstr_chunk(req, "_");
                 if ( retry_num++ > 100)
                 {
                     ESP_LOGE(TAG, "retry too many times, quit!");
@@ -505,6 +509,7 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
             }
             case 0x18: //waiting
             {
+                httpd_resp_sendstr_chunk(req, " ");
                 size_t size = 0;
                 char *ch = (char *)xRingbufferReceiveUpTo(rxbuf_handle, &size, pdMS_TO_TICKS(1000), 1);
                 if(size > 0) {
@@ -527,10 +532,10 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
     ESP_LOGI(TAG, "File reception complete");
 
     /* Redirect onto root to see the updated file list */
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/");
-    httpd_resp_sendstr(req, "Flash programmed successfully\r\n");
+    httpd_resp_sendstr_chunk(req, "\r\nFlash programmed successfully\r\n");
+    httpd_resp_send_chunk(req, NULL, 0);
 upload_w806_post_handler_cleanup:
+    ESP_ERROR_CHECK(uart_set_baudrate(W806_UART_NUM, previousBaudRate));
     uart_listen_remove_callback(W806_UART_NUM, rx_listen_callback_iterator);
     vRingbufferDelete(rxbuf_handle);
     bootset_w806();
@@ -580,11 +585,13 @@ static esp_err_t upload_attiny_post_handler(httpd_req_t *req)
      * the size of the file being uploaded */
     int remaining = req->content_len;
 
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/");
     while (remaining > 0) {
 
         ESP_LOGI(TAG, "Remaining size : %d", remaining);
         /* Receive the file part by part into a buffer */
-        if ((received = httpd_req_recv(req, buf, MIN(remaining, SCRATCH_BUFSIZE))) <= 0) {
+        if ((received = httpd_req_recv(req, buf + (req->content_len - remaining), MIN(remaining, SCRATCH_BUFSIZE))) <= 0) {
             if (received == HTTPD_SOCK_ERR_TIMEOUT) {
                 /* Retry if timeout occurred */
                 continue;
@@ -596,28 +603,29 @@ static esp_err_t upload_attiny_post_handler(httpd_req_t *req)
             return ESP_FAIL;
         }
 
-        /* Write buffer content to ATTiny. retry once if failed first time */
-        if (received && (!UPDI_Program((uart_port_t)1, tx_pin, rx_pin, (uint8_t *)buf, received))) {
-            vTaskDelay(pdMS_TO_TICKS(1000));
-            if(!UPDI_Program((uart_port_t)1, tx_pin, rx_pin, (uint8_t *)buf, received)) {
-                ESP_LOGE(TAG, "Program failed!");
-                /* Respond with 500 Internal Server Error */
-                httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to program flash\r\n");
-                return ESP_FAIL;
-            }
-        }
-
         /* Keep track of remaining size of
          * the file left to be uploaded */
         remaining -= received;
     }
 
+    httpd_resp_sendstr_chunk(req, "Programming Flash\r\n");
+    /* Write buffer content to ATTiny. retry once if failed first time */
+    if (!UPDI_Program((uart_port_t)1, tx_pin, rx_pin, (uint8_t *)buf, req->content_len)) {
+        httpd_resp_sendstr_chunk(req, "Failed. Retrying...\r\n");
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        if(!UPDI_Program((uart_port_t)1, tx_pin, rx_pin, (uint8_t *)buf, req->content_len)) {
+            ESP_LOGE(TAG, "Program failed!");
+            /* Respond with 500 Internal Server Error */
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to program flash\r\n");
+            return ESP_FAIL;
+        }
+    }
+
     ESP_LOGI(TAG, "File reception complete");
 
     /* Redirect onto root to see the updated file list */
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/");
-    httpd_resp_sendstr(req, "Flash programmed successfully\r\n");
+    httpd_resp_sendstr_chunk(req, "Flash programmed successfully\r\n");
+    httpd_resp_send_chunk(req, NULL, 0);
     return ESP_OK;
 }
 

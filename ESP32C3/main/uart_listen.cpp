@@ -26,7 +26,7 @@ extern "C" {
             uart_get_buffered_data_len(config->uart_num, &bufferedLen);
             if(bufferedLen > 0) 
             {
-                len += uart_read_bytes(config->uart_num, rx_buffer + 1, bufferedLen > config->rx_buffer_size - 1? config->rx_buffer_size: bufferedLen, pdMS_TO_TICKS(1000));
+                len += uart_read_bytes(config->uart_num, rx_buffer + 1, bufferedLen > (config->rx_buffer_size - 1)? (config->rx_buffer_size - 1): bufferedLen, pdMS_TO_TICKS(1000));
             }
             // Write data to functions
             if (len) 
