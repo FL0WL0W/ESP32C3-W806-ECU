@@ -221,10 +221,8 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
     }
 
     //reset w806
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/");
-    httpd_resp_set_type(req, "text/plain");
     httpd_resp_sendstr_chunk(req, "Resetting W806 into flash mode\r\n");
+    ESP_ERROR_CHECK(uart_set_baudrate(W806_UART_NUM, 115200));
     bootreset_w806();
     reset_w806();
 
@@ -296,7 +294,60 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
         {
             ESP_LOGE(TAG, "Failed to sync");
             /* Respond with 500 Internal Server Error */
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to sync\r\n");
+            httpd_resp_sendstr_chunk(req, "Failed to sync\r\n");
+            ret = ESP_FAIL;
+            goto upload_w806_post_handler_cleanup;
+        }
+    } while (cnt < 3);
+
+    httpd_resp_sendstr_chunk(req, "Erasing\r\n");
+    uart_write_bytes(W806_UART_NUM, wm_tool_chip_cmd_erase, sizeof(wm_tool_chip_cmd_erase));
+
+    //sync
+    start = get_timestamp(); 
+    macstr[17] = {0};
+    offset = 0;
+    do
+    {
+        size_t size = 0;
+        char *ch = (char *)xRingbufferReceiveUpTo(rxbuf_handle, &size, pdMS_TO_TICKS(1000), 1);
+
+        if (size > 0)
+        {
+            if (('C' == *ch) || ('P' == *ch))
+                cnt++;
+            else
+                cnt = 0;
+            vRingbufferReturnItem(rxbuf_handle, ch);
+        }
+        else
+        {
+            cnt = 0;
+            //reset w806
+            bootreset_w806();
+            reset_w806();
+
+            for (int i = 0; i < 100; i++)
+            {
+                uart_write_bytes(W806_UART_NUM, &esc_key, 1);
+                ch = (char *)xRingbufferReceiveUpTo(rxbuf_handle, &size, pdMS_TO_TICKS(10), 1);
+                if (size > 0)
+                {
+                    if (('C' == *ch) || ('P' == *ch))
+                        cnt++;
+                    else
+                        cnt = 0;
+                    vRingbufferReturnItem(rxbuf_handle, ch);
+                    break;
+                }
+            }
+        }
+
+        if((get_timestamp() - start) > 10000000)
+        {
+            ESP_LOGE(TAG, "Failed to sync");
+            /* Respond with 500 Internal Server Error */
+            httpd_resp_sendstr_chunk(req, "Failed to erase\r\n");
             ret = ESP_FAIL;
             goto upload_w806_post_handler_cleanup;
         }
@@ -356,13 +407,13 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
         {
             ESP_LOGE(TAG, "Failed to get MAC");
             /* Respond with 500 Internal Server Error */
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to verify connection\r\n");
+            httpd_resp_sendstr_chunk(req, "Failed to verify connection\r\n");
             ret = ESP_FAIL;
             goto upload_w806_post_handler_cleanup;
         }
     } while (1);
 
-    httpd_resp_sendstr_chunk(req, "Sending File ");
+    httpd_resp_sendstr_chunk(req, "Sending File\r\n");
     while (ack_id != 0x04) {
 
         ESP_LOGI(TAG, "Remaining size : %d\t\tack_id : %x", remaining, ack_id);
@@ -381,7 +432,7 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
 
                         ESP_LOGE(TAG, "File reception failed!");
                         /* Respond with 500 Internal Server Error */
-                        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to receive file\r\n");
+                        // httpd_resp_sendstr_chunk(req, "Failed to receive file\r\n");
                         ret = ESP_FAIL;
                         goto upload_w806_post_handler_cleanup;
                     }
@@ -413,8 +464,8 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
                     }
 
                     buf[0] = 0x02;
-                    buf[1] = (char)pack_counter;
-                    buf[2] = (char)(255 - buf[1]);
+                    buf[1] = pack_counter;
+                    buf[2] = 255 - buf[1];
 
                     crc_value = w806_crc16(buf + 3, W806_XMODEM_DATA_SIZE);
 
@@ -422,7 +473,7 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
                     buf[W806_XMODEM_DATA_SIZE + 4]=(unsigned char)(crc_value);
 
                     //send frame header
-                    uart_write_bytes(W806_UART_NUM, buf, 5);
+                    uart_write_bytes(W806_UART_NUM, buf, 1);
 
                     //clear rx buffer
                     size_t size = 0;
@@ -431,7 +482,7 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
                         vRingbufferReturnItem(rxbuf_handle, ch);
 
                     //send frame
-                    uart_write_bytes(W806_UART_NUM, buf + 5, W806_XMODEM_DATA_SIZE);
+                    uart_write_bytes(W806_UART_NUM, buf + 1, W806_XMODEM_DATA_SIZE + 4);
 
                     //wait for ACK
                     ch = (char *)xRingbufferReceiveUpTo(rxbuf_handle, &size, pdMS_TO_TICKS(1000), 1);
@@ -473,12 +524,12 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
             }
             case 0x15:
             {
-                httpd_resp_sendstr_chunk(req, "_");
+                httpd_resp_sendstr_chunk(req, "*");
                 if ( retry_num++ > 100)
                 {
                     ESP_LOGE(TAG, "retry too many times, quit!");
                     /* Respond with 500 Internal Server Error */
-                    httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Timed out trying to program flash\r\n");
+                    httpd_resp_sendstr_chunk(req, "Timed out trying to program flash\r\n");
                     ret = ESP_FAIL;
                     goto upload_w806_post_handler_cleanup;
                 }
@@ -508,8 +559,9 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
                 break;
             }
             case 0x18: //waiting
+            case 0x43:
             {
-                httpd_resp_sendstr_chunk(req, " ");
+                httpd_resp_sendstr_chunk(req, "_");
                 size_t size = 0;
                 char *ch = (char *)xRingbufferReceiveUpTo(rxbuf_handle, &size, pdMS_TO_TICKS(1000), 1);
                 if(size > 0) {
@@ -522,7 +574,7 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
             {
                 ESP_LOGE(TAG, "Program failed! Unkown xmodem protocol [%x].", ack_id);
                 /* Respond with 500 Internal Server Error */
-                httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to program flash. Unkown xmodem protocol.\r\n");
+                httpd_resp_sendstr_chunk(req, "Failed to program flash. Unkown xmodem protocol.\r\n");
                 ret = ESP_FAIL;
                 goto upload_w806_post_handler_cleanup;
             }
@@ -533,8 +585,11 @@ static esp_err_t upload_w806_post_handler(httpd_req_t *req)
 
     /* Redirect onto root to see the updated file list */
     httpd_resp_sendstr_chunk(req, "\r\nFlash programmed successfully\r\n");
-    httpd_resp_send_chunk(req, NULL, 0);
 upload_w806_post_handler_cleanup:
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/");
+    httpd_resp_set_type(req, "text/plain");
+    httpd_resp_send_chunk(req, NULL, 0);
     ESP_ERROR_CHECK(uart_set_baudrate(W806_UART_NUM, previousBaudRate));
     uart_listen_remove_callback(W806_UART_NUM, rx_listen_callback_iterator);
     vRingbufferDelete(rxbuf_handle);
@@ -585,8 +640,6 @@ static esp_err_t upload_attiny_post_handler(httpd_req_t *req)
      * the size of the file being uploaded */
     int remaining = req->content_len;
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/");
     while (remaining > 0) {
 
         ESP_LOGI(TAG, "Remaining size : %d", remaining);
@@ -625,6 +678,8 @@ static esp_err_t upload_attiny_post_handler(httpd_req_t *req)
 
     /* Redirect onto root to see the updated file list */
     httpd_resp_sendstr_chunk(req, "Flash programmed successfully\r\n");
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/");
     httpd_resp_send_chunk(req, NULL, 0);
     return ESP_OK;
 }

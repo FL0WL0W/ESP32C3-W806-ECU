@@ -25,23 +25,14 @@ const static unsigned char wm_tool_chip_cmd_b1000000[] = {0x21, 0x0a, 0x00, 0x5e
 const static unsigned char wm_tool_chip_cmd_b2000000[] = {0x21, 0x0a, 0x00, 0xef, 0x2a, 0x31, 0x00, 0x00, 0x00, 0x80, 0x84, 0x1e, 0x00};
 
 const static unsigned char wm_tool_chip_cmd_get_mac[]  = {0x21, 0x06, 0x00, 0xea, 0x2d, 0x38, 0x00, 0x00, 0x00};
+const static unsigned char wm_tool_chip_cmd_erase[]  = {0x21, 0x0a, 0x00, 0xc3, 0x35, 0x32, 0x00, 0x00, 0x00, 0x02, 0x00, 0xfe, 0x01};
 
 #endif
 static inline void reset_w806()
 {
-    uart_config_t uart_config = {
-        .baud_rate = 115200,
-        .data_bits = UART_DATA_8_BITS,
-        .parity    = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_DEFAULT,
-    };
-    if(gpio_get_level(W806_BOOT_PIN))
-        uart_config.baud_rate = 2000000;
-
     ESP_LOGI("W806", "Resetting");
     ESP_ERROR_CHECK(gpio_set_level(W806_RESET_PIN, 0));
+    ESP_ERROR_CHECK(gpio_set_direction(W806_RESET_PIN, GPIO_MODE_OUTPUT));
     vTaskDelay(pdMS_TO_TICKS(1));
     ESP_ERROR_CHECK(gpio_set_level(W806_RESET_PIN, 1));
 }
@@ -64,15 +55,15 @@ static void reset_w806_task(void *arg)
     vTaskDelete(NULL);
 }
 
-static unsigned short w806_crc16(char *ptr, unsigned short count)
+static uint16_t w806_crc16(char *ptr, uint16_t count)
 {
-    unsigned short crc, i;
+    uint16_t crc, i;
 
     crc = 0;
 
     while (count--)
     {
-        crc = crc ^ (int) *(unsigned char *)ptr++ << 8;
+        crc = crc ^ ((int)*((unsigned char *)ptr++)) << 8;
 
         for (i = 0; i < 8; i++)
         {
