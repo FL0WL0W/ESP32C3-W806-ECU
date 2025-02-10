@@ -8,10 +8,10 @@
 #define W806_H
 
 #define W806_UART_NUM (uart_port_t)0
-#define W806_UART_RX_PIN (gpio_num_t)20
-#define W806_UART_TX_PIN (gpio_num_t)21
-#define W806_RESET_PIN (gpio_num_t)10
-#define W806_BOOT_PIN (gpio_num_t)7
+#define W806_UART_RX_PIN (gpio_num_t)17
+#define W806_UART_TX_PIN (gpio_num_t)16
+#define W806_RESET_PIN (gpio_num_t)23
+#define W806_BOOT_PIN (gpio_num_t)2
 #define W806_XMODEM_DATA_SIZE 1024
 
 #ifdef __cplusplus

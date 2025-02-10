@@ -43,11 +43,11 @@ project(${TARGET} C CXX ASM)
 set(LIBRARIES	libs)
 
 include_directories(include)
-include_directories(${CMAKE_BINARY_DIR}/_deps/embeddedioservices-src/HardwareAbstractions/W80x/include)
+include_directories(libs/EmbeddedIOServices/HardwareAbstractions/W80x/include)
 
 file(GLOB_RECURSE USER_CSOURCES src/*.c)
 file(GLOB_RECURSE USER_CPPSOURCES src/*.cpp)
-file(GLOB_RECURSE EmbeddedIOService_SOURCES ${CMAKE_BINARY_DIR}/_deps/embeddedioservices-src/HardwareAbstractions/W80x/src/*.cpp)
+file(GLOB_RECURSE EmbeddedIOService_SOURCES $libs/EmbeddedIOServices/HardwareAbstractions/W80x/src/*.cpp)
 
 set(SRCS 
         ${USER_CSOURCES} 
@@ -64,10 +64,35 @@ set(BIN_FILE ${CMAKE_BINARY_DIR}/${TARGET}.bin)
 add_custom_command(TARGET ${TARGET}.elf POST_BUILD
         COMMAND bash -c "gcc ${CMAKE_BINARY_DIR}/_deps/wm-sdk-w806-src/tools/W806/wm_tool.c -lpthread -o ${CMAKE_BINARY_DIR}/wm_tool"
         COMMAND ${CMAKE_OBJCOPY} ARGS -O binary $<TARGET_FILE:${TARGET}.elf> ${BIN_FILE}
-        COMMAND bash -c "${CMAKE_BINARY_DIR}/wm_tool -b ${BIN_FILE} -fc 0 -it 0 -ih 8002000 -ra 8002400 -ua 8002000 -nh 0 -un 0 -o ${CMAKE_SOURCE_DIR}/build/${TARGET}"
-        COMMENT "Building ${BIN_FILE} ${CMAKE_SOURCE_DIR}/build/${TARGET}.img")
+        COMMAND bash -c "${CMAKE_BINARY_DIR}/wm_tool -b ${BIN_FILE} -fc 0 -it 0 -ih 8002000 -ra 8002400 -ua 8002000 -nh 0 -un 0 -o ${CMAKE_BINARY_DIR}/${TARGET}"
+        COMMENT "Building ${BIN_FILE} ${CMAKE_BINARY_DIR}/${TARGET}.img")
 
-set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install")
-install(CODE "execute_process( 
-    COMMAND bash -c \"curl --data-binary @${CMAKE_SOURCE_DIR}/build/${TARGET}.img http://192.168.4.1/upload/w806\"
-)")
+set(UPLOAD_ADDRESS "http://192.168.4.1/upload/w806" CACHE STRING "web address to upload img to")
+
+add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/upload.success
+    COMMAND ${CMAKE_COMMAND} -E echo "Uploading to ${UPLOAD_ADDRESS}"
+    COMMAND bash -c "curl --data-binary @${CMAKE_BINARY_DIR}/${TARGET}.img http://192.168.4.1/upload/w806"
+    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_BINARY_DIR}/upload.success
+    COMMENT "Uploading ${CMAKE_BINARY_DIR}/${TARGET}.img")
+
+add_custom_target(
+    upload
+    DEPENDS ${CMAKE_BINARY_DIR}/upload.success
+)
+
+set(DL_PORT "ttyUSB0" CACHE STRING "port to flash firmware to")
+set(DL_BAUD "2000000" CACHE STRING "baud rate to flash device")
+set(DL_TEST "2000000")
+
+add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/flashed.success
+    COMMAND ${CMAKE_COMMAND} -E echo "Flashing to ${DL_PORT} at ${DL_BAUD}"
+    COMMAND bash -c "${CMAKE_BINARY_DIR}/wm_tool -c ${DL_PORT} -rs at -ds @${DL_BAUD} -dl \"${CMAKE_BINARY_DIR}/${TARGET}.img\""
+    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_BINARY_DIR}/flashed.success
+    COMMENT "Flashing ${CMAKE_BINARY_DIR}/${TARGET}.img")
+
+add_custom_target(
+    flash
+    DEPENDS ${CMAKE_BINARY_DIR}/flashed.success
+)

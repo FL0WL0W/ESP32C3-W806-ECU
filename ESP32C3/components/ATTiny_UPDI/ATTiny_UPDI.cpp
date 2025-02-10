@@ -1,7 +1,7 @@
 #include <ATTiny_UPDI.h>
 #include <stdio.h>
 #include <string.h>
-#include "uart_listen.h"
+#include <functional>
 #include "driver/gpio.h"
 #include "hal/gpio_hal.h"
 #include "esp_log.h"
@@ -26,58 +26,10 @@ void _UPDI_error_check_failed(const char *file, int line, const char *function, 
 
 uart_port_t UPDI_uart_num;
 bool UPDI_callback_registered;
-std::list<uart_callback_t>::iterator UPDI_uart_callback_iterator;
-#define UPDI_RX_BUFFER_LENGTH 1024
+uint32_t UPDI_uart_callback_id;
 uint8_t UPDI_rx_buffer[UPDI_RX_BUFFER_LENGTH];
 volatile size_t UPDI_rx_buffer_index = 0;
 volatile size_t UPDI_rx_buffer_length = 0;
-
-//read UPDI byte
-extern "C" bool UPDI_Read(uint8_t *val)
-{
-    uint8_t timeout = 0;
-    while(UPDI_rx_buffer_length < 1 && timeout++ < 100)
-        vTaskDelay(pdMS_TO_TICKS(1));
-    if(timeout > 99){
-        return false;
-    }
-    // ESP_LOGE("UPDI", "read %x %d %d %d", UPDI_rx_buffer[UPDI_rx_buffer_index], UPDI_rx_buffer_index, UPDI_rx_buffer_length, timeout);
-    *val = UPDI_rx_buffer[UPDI_rx_buffer_index++];
-    UPDI_rx_buffer_length--;
-    UPDI_rx_buffer_index %= UPDI_RX_BUFFER_LENGTH;
-    return true;
-}
-
-//write UPDI byte
-extern "C" bool UPDI_Write(uint8_t val)
-{
-    if(!(uart_write_bytes(UPDI_uart_num, &val, 1) > 0))
-        return false;
-    uint8_t verify;
-    if(!UPDI_Read(&verify))
-        return false;
-    return verify == val;
-}
-
-//UPDI send Break
-extern "C" void UPDI_Break()
-{
-    uint32_t baudrate = 100000;
-
-    uart_wait_tx_done(UPDI_uart_num, pdMS_TO_TICKS(30)); //wait for all bytes to be flushed
-    uart_get_baudrate(UPDI_uart_num, &baudrate);
-    uart_set_baudrate(UPDI_uart_num, 300);
-    UPDI_Write(0);  // send a zero byte
-    uart_wait_tx_done(UPDI_uart_num, pdMS_TO_TICKS(30)); // wait for 0 byte to finish before restore normal baudrate
-    uart_set_baudrate(UPDI_uart_num, baudrate); // set baudrate back to normal after break is sent
-}
-
-extern "C" void UPDI_Idle()
-{
-    uint32_t baudrate = 100000;
-    uart_get_baudrate(UPDI_uart_num, &baudrate);
-    esp_rom_delay_us(15000000/baudrate);
-}
 
 bool ack_disabled = false;
 extern "C" bool UPDI_ReadAck()
@@ -96,6 +48,9 @@ bool UPDI_DisableAck()
     UPDI_STCS(0x2, CTRLA);
     ack_disabled = true;
     uint8_t CTRLACheck = 0x0C;
+    //clear read buffer
+    uint8_t val;
+    while(UPDI_Read(&val)) ;
     UPDI_ERROR_CHECK(UPDI_LDCS(0x2, &CTRLACheck));
     UPDI_ERROR_CHECK(CTRLACheck == CTRLA);
     return true;
@@ -109,51 +64,24 @@ bool UPDI_EnableAck()
     UPDI_STCS(0x2, CTRLA);
     ack_disabled = false;
     uint8_t CTRLACheck = 0x06;
+    //clear read buffer
+    uint8_t val;
+    while(UPDI_Read(&val)) ;
     UPDI_ERROR_CHECK(UPDI_LDCS(0x2, &CTRLACheck));
     UPDI_ERROR_CHECK(CTRLACheck == CTRLA);
     return true;
 }
 
+extern void uart_listen_remove_callback(uart_port_t uart_num, uint32_t callback_iterator);
+extern uint32_t uart_listen_add_callback(uart_port_t uart_num, std::function<void(const uint8_t *, size_t)> callback);
+
 bool UPDI_Enable(uart_port_t uart_num, gpio_num_t tx_pin, gpio_num_t rx_pin)
 {
-    // Setup UPDI UART
-    uart_config_t uart_config = {
-        .baud_rate = 100000,
-        .data_bits = UART_DATA_8_BITS,
-        .parity    = UART_PARITY_EVEN,
-        .stop_bits = UART_STOP_BITS_2, 
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_DEFAULT,
-    };
-    ESP_ERROR_CHECK(uart_param_config(uart_num, &uart_config));
-    gpio_set_pull_mode(rx_pin, GPIO_FLOATING);
-
-    //start UPDI
-    gpio_set_level(tx_pin, 1);
-    gpio_set_direction(tx_pin, GPIO_MODE_OUTPUT);
-    gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[tx_pin], PIN_FUNC_GPIO);
-    gpio_set_direction(rx_pin, GPIO_MODE_INPUT);
-    gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[rx_pin], PIN_FUNC_GPIO);
-
-    //send enable pulse
-    gpio_set_level(tx_pin, 0);
-    vTaskDelay(pdMS_TO_TICKS(25));
-    gpio_set_level(tx_pin, 1);
-    vTaskDelay(pdMS_TO_TICKS(25));
-    gpio_set_level(tx_pin, 0);
-    gpio_set_level(tx_pin, 1);
-
-    //wait for enable pulse end
-    uint32_t i = 0;
-    while(!gpio_get_level(rx_pin) && i++ < 15) esp_rom_delay_us(100);
-    
-    ESP_ERROR_CHECK(uart_set_pin(uart_num, tx_pin, rx_pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
-
     // Setup UPDI Callback
     if(UPDI_callback_registered) {
-        uart_listen_remove_callback(UPDI_uart_num, UPDI_uart_callback_iterator);
+        uart_listen_remove_callback(uart_num, UPDI_uart_callback_id);
     }
-    UPDI_uart_callback_iterator = uart_listen_add_callback(uart_num, [](const uint8_t *rx_buffer, size_t len) {
+    UPDI_uart_callback_id = uart_listen_add_callback(uart_num, [](const uint8_t *rx_buffer, size_t len) {
         size_t index = 0;
         while(len > 0) {
             UPDI_rx_buffer[(UPDI_rx_buffer_index + UPDI_rx_buffer_length) % UPDI_RX_BUFFER_LENGTH] = rx_buffer[index];
@@ -165,8 +93,28 @@ bool UPDI_Enable(uart_port_t uart_num, gpio_num_t tx_pin, gpio_num_t rx_pin)
     UPDI_rx_buffer_index = 0;
     UPDI_rx_buffer_length = 0;
     UPDI_callback_registered = true;
-
     UPDI_uart_num = uart_num;
+
+    // Setup UPDI UART and send 500ns pulse
+    uart_config_t uart_config = {
+        .baud_rate = 2000000,
+        .data_bits = UART_DATA_8_BITS,
+        .parity    = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1, 
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .source_clk = UART_SCLK_DEFAULT,
+    };
+    ESP_ERROR_CHECK(uart_param_config(uart_num, &uart_config));
+    ESP_ERROR_CHECK(gpio_set_drive_capability(tx_pin, GPIO_DRIVE_CAP_0));
+    ESP_ERROR_CHECK(uart_set_pin(uart_num, tx_pin, rx_pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
+    gpio_set_pull_mode(rx_pin, GPIO_FLOATING);
+    UPDI_Write(0xFF);
+    uart_wait_tx_done(uart_num, pdMS_TO_TICKS(1)); // wait for FF byte to finish before restore normal baudrate
+    uart_config.baud_rate = 100000;
+    uart_config.parity = UART_PARITY_EVEN;
+    uart_config.stop_bits = UART_STOP_BITS_2;
+    ESP_ERROR_CHECK(uart_param_config(uart_num, &uart_config));
+    esp_rom_delay_us(196);
 
     //send NVMPROG Key to enable UPDI
     uint64_t key = UPDI_KEYNVMPROG;
@@ -174,9 +122,6 @@ bool UPDI_Enable(uart_port_t uart_num, gpio_num_t tx_pin, gpio_num_t rx_pin)
     UPDI_Break();
     UPDI_Break();
     UPDI_Idle();
-
-    //for some reason the break setting the baud rate back doesn't work. so do it here.
-    uart_set_baudrate(UPDI_uart_num, 115200);
 
     //clear read buffer. this could get filled by who knows what before we get to here
     uint8_t val;
@@ -332,10 +277,15 @@ bool UPDI_WriteFlashOrEEPROM(uint32_t address, uint8_t *data, uint32_t length)
 bool UPDI_Program(uart_port_t uart_num, gpio_num_t tx_pin, gpio_num_t rx_pin, uint8_t *data, uint32_t length)
 {
     ESP_LOGI("UPDI", "programming attiny");
+    ESP_LOGI("UPDI", "enable");
     UPDI_ERROR_CHECK(UPDI_Enable(uart_num, tx_pin, rx_pin));
+    ESP_LOGI("UPDI", "erase");
     if(!UPDI_EraseChip()) UPDI_ERROR_CHECK(UPDI_EraseChip());
+    ESP_LOGI("UPDI", "nvm");
     if(!UPDI_NVMProg()) UPDI_ERROR_CHECK(UPDI_NVMProg());
+    ESP_LOGI("UPDI", "flash");
     UPDI_ERROR_CHECK(UPDI_WriteFlashOrEEPROM(0x8000, data, length));
+    ESP_LOGI("UPDI", "reset");
     UPDI_ERROR_CHECK(UPDI_Reset());
     ESP_LOGI("UPDI", "success!");
     return true;

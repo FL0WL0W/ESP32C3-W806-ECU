@@ -6,7 +6,7 @@
 #define ANALOGSERVICE_ATTINY427EXPANDER_H
 namespace EmbeddedIOServices
 {
-	typedef int8_t AnalogChannel_ATTiny427Expander;
+	typedef uint8_t AnalogChannel_ATTiny427Expander;
 	
 	struct AnalogService_ATTiny427Expander_Registers 
 	{
