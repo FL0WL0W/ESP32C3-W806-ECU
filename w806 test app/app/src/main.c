@@ -202,10 +202,10 @@ static void UART1_Init(void)
     {
         Error_Handler();
     }
-    //set baud rate to 2.5mhz
-    __HAL_UART_DISABLE(&huart1);
-    huart1.Instance->BAUDR = 0;
-    __HAL_UART_ENABLE(&huart1);
+    // //set baud rate to 2.5mhz
+    // __HAL_UART_DISABLE(&huart1);
+    // huart1.Instance->BAUDR = 0;
+    // __HAL_UART_ENABLE(&huart1);
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
