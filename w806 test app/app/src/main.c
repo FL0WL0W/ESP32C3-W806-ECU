@@ -16,37 +16,34 @@
 
 #include <stdio.h>
 #include "wm_hal.h"
+#include "fifo.h"
 
+UART_HandleTypeDef huart1;
+
+static void UART1_Init(void);
 void Error_Handler(void);
 
-SPI_HandleTypeDef hspi;
-DMA_HandleTypeDef hdma_spi_tx;
-DMA_HandleTypeDef hdma_spi_rx;
+#define IT_LEN 0
+static uint8_t buf[32] = {0};
+#define LEN 2048
+static uint8_t pdata[LEN] = {0};
 
-static void SPI_Init(void);
-static void DMA_Init(void);
 #define data_len (10000)
 uint8_t tx_data[data_len] = {0};
 uint8_t rx_data[data_len] = {0};
 
 int main(void)
 {
+    volatile int tx_len = 0;
+
     SystemClock_Config(CPU_CLK_240M);
     printf("enter main\r\n");
-    DMA_Init();
-    SPI_Init();
     
     __HAL_RCC_GPIO_CLK_ENABLE();
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-    GPIO_InitStruct.Pin = GPIO_PIN_10;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-    GPIO_InitStruct.Pin = GPIO_PIN_3;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_SET);
+    
+    UART1_Init();
+    FifoInit(pdata, LEN);
+    HAL_UART_Receive_IT(&huart1, buf, IT_LEN); 
 
     int setupIterator = 0;
     //adc channels enabled
@@ -112,7 +109,8 @@ int main(void)
     tx_data[setupIterator++] = 0x00;
     tx_data[setupIterator++] = 0x00;
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_RESET);
-    HAL_SPI_TransmitReceive(&hspi, (uint8_t *)tx_data, (uint8_t *)rx_data, setupIterator, 1000);
+    HAL_UART_Transmit(&huart1, tx_data, setupIterator, 1000);
+    FifoRead(rx_data, FifoDataLen());
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_SET);
     printf("\r\nrx: ");
     for(int i=2; i < setupIterator; i+=16)
@@ -175,7 +173,8 @@ int main(void)
         tx_data[47] = 0;
         tx_data[48] = 0;
 
-        HAL_SPI_TransmitReceive(&hspi, (uint8_t *)tx_data, (uint8_t *)rx_data, 49, 1000);
+        HAL_UART_Transmit(&huart1, tx_data, 49, 1000);
+        FifoRead(rx_data, FifoDataLen());
         HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_SET);
         printf("\r\nrx: ");
         printHexLine(&rx_data[2]);
@@ -190,39 +189,31 @@ printHexLine(uint8_t *buf) {
             buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7],buf[8],buf[9],buf[10],buf[11],buf[12],buf[13],buf[14],buf[15]);
 }
 
-static void SPI_Init(void)
+static void UART1_Init(void)
 {
-    hspi.Instance = SPI;
-    hspi.Init.Mode = SPI_MODE_MASTER;
-    hspi.Init.CLKPolarity = SPI_POLARITY_LOW;
-    hspi.Init.CLKPhase = SPI_PHASE_1EDGE;
-    hspi.Init.NSS = SPI_NSS_SOFT;
-    hspi.Init.BaudRatePrescaler = 7;
-    hspi.Init.FirstByte = SPI_LITTLEENDIAN;
-    
-    if (HAL_SPI_Init(&hspi) != HAL_OK)
+    huart1.Instance = UART1;
+    huart1.Init.BaudRate = 2000000;
+    huart1.Init.WordLength = UART_WORDLENGTH_8B;
+    huart1.Init.StopBits = UART_STOPBITS_1;
+    huart1.Init.Parity = UART_PARITY_NONE;
+    huart1.Init.Mode = UART_MODE_TX | UART_MODE_RX;
+    huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+    if (HAL_UART_Init(&huart1) != HAL_OK)
     {
         Error_Handler();
     }
+    //set baud rate to 2.5mhz
+    __HAL_UART_DISABLE(&huart1);
+    huart1.Instance->BAUDR = 0;
+    __HAL_UART_ENABLE(&huart1);
 }
 
-void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-    // __HAL_SPI_SET_CS_HIGH(hspi);
-    // HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_SET);
-    // printf("rx: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\r\n", 
-    //     rx_data[0], rx_data[1], rx_data[2], rx_data[3], rx_data[4], rx_data[5], rx_data[6], rx_data[7], rx_data[8], rx_data[9]);
-}
-
-static void DMA_Init(void)
-{
-    __HAL_RCC_DMA_CLK_ENABLE();
-    
-    HAL_NVIC_SetPriority(DMA_Channel0_IRQn, 0);
-    HAL_NVIC_EnableIRQ(DMA_Channel0_IRQn);
-    
-    HAL_NVIC_SetPriority(DMA_Channel1_IRQn, 0);
-    HAL_NVIC_EnableIRQ(DMA_Channel1_IRQn);
+    if (FifoSpaceLen() >= huart->RxXferCount)
+    {
+        FifoWrite(huart->pRxBuffPtr, huart->RxXferCount);
+    }
 }
 
 void Error_Handler(void)
